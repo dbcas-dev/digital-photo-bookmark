@@ -233,7 +233,7 @@ function VerificationContent() {
               <div className="relative">
                 <input 
                   type="text" 
-                  placeholder="PHOTO CODE OR KEYWORD..."
+                  placeholder="PHOTO CODE"
                   className="w-full bg-white border border-slate-200 p-4 pr-32 rounded-lg text-[15px] font-bold text-slate-900 shadow-sm outline-none focus:border-blue-600 transition-all uppercase"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
