@@ -2,39 +2,68 @@
 import { Metadata } from 'next';
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import MainUI from "./components/MainUI"; // Dito natin tatawagin yung UI mo
+import MainUI from "./components/MainUI";
 import { searchPhotoRecords } from "@/app/actions/photoActions";
 
 type Props = {
-  searchParams: { c?: string; s?: string };
+  // In Next.js 15, these MUST be Promises
+  params: Promise<{ [key: string]: string }>;
+  searchParams: Promise<{ c?: string; s?: string }>;
 };
 
-// ETO YUNG AUTOMATIC THUMBNAIL LOGIC
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const code = searchParams.c;
-  const siteUrl = "https://dbcas.vercel.app/"; // PALITAN MO ITO NG LIVE URL MO
+  // FIX #1: Await the searchParams immediately
+  const { c: code } = await searchParams;
+  const siteUrl = "https://dbcas.vercel.app";
 
   if (code) {
-    const result = await searchPhotoRecords(code);
-    if (result.success && result.data.length > 0) {
-      const record = result.data[0];
-      return {
-        title: `Verified: ${record.photo_code}`,
-        openGraph: {
-          title: `Verified Image: ${record.photo_code}`,
+    try {
+      const result = await searchPhotoRecords(code);
+      if (result.success && result.data.length > 0) {
+        const record = result.data[0];
+        const imageUrl = record.thumb_url;
+
+        return {
+          // FIX #2: Explicitly set metadataBase to resolve relative paths
+          metadataBase: new URL(siteUrl),
+          title: `Verified: ${record.photo_code}`,
           description: `Album: ${record.album_name}`,
-          url: `${siteUrl}/?c=${code}`,
-          images: [{ url: record.thumb_url }], // ETO YUNG LALABAS NA PICTURE SA FB
-          type: 'website',
-        },
-      };
+          openGraph: {
+            title: `Verified Image: ${record.photo_code}`,
+            description: `Album: ${record.album_name} | Verified via DBCAS`,
+            url: `/?c=${code}`,
+            siteName: 'DBCAS',
+            // FIX #3: Use absolute URL and specify dimensions
+            images: [
+              {
+                url: imageUrl, 
+                width: 1200,
+                height: 630,
+              },
+            ],
+            type: 'website',
+          },
+          twitter: {
+            card: 'summary_large_image',
+            title: `Verified: ${record.photo_code}`,
+            description: `Album: ${record.album_name}`,
+            images: [imageUrl],
+          },
+        };
+      }
+    } catch (e) {
+      console.error("Metadata fetch error:", e);
     }
   }
 
-  // Default SEO pag walang sine-search
+  // Default Fallback
   return {
-    title: 'Photobooth Verification System',
-    description: 'Verify and download your digital bookmarks.',
+    metadataBase: new URL(siteUrl),
+    title: 'Capture and Share',
+    description: 'Digital Image Sharing made better!',
+    openGraph: {
+      images: ['/og-image.jpg'], // Make sure this file exists in your /public folder!
+    },
   };
 }
 
