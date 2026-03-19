@@ -401,215 +401,233 @@ export default function Dashboard() {
         )}
 
         {/* --- DUAL-MODE MODAL (Preview & Edit) --- */}
-        {showModal && (
-          <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-50 p-0 md:p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }} 
-              animate={{ opacity: 1, scale: 1 }} 
-              className="bg-white w-full h-full md:h-[90vh] md:w-[95vw] md:max-w-[1200px] md:rounded-lg shadow-2xl flex flex-col overflow-hidden relative"
-            >
-              <button 
-                onClick={() => setShowModal(false)} 
-                className="absolute top-4 right-4 md:top-6 md:right-6 z-50 p-2 bg-slate-100/80 hover:bg-slate-200 rounded-full text-slate-600 transition-all cursor-pointer"
-              >
-                <X size={20} className="md:w-6 md:h-6" />
-              </button>
+{showModal && (
+  <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-50 p-0 md:p-4">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }} 
+      animate={{ opacity: 1, scale: 1 }} 
+      className="bg-white w-full h-full md:h-[90vh] md:w-[95vw] md:max-w-[1200px] md:rounded-lg shadow-2xl flex flex-col overflow-hidden relative"
+    >
+      <button 
+        onClick={() => setShowModal(false)} 
+        className="absolute top-4 right-4 md:top-6 md:right-6 z-50 p-2 bg-slate-100/80 hover:bg-slate-200 rounded-full text-slate-600 transition-all cursor-pointer"
+      >
+        <X size={20} className="md:w-6 md:h-6" />
+      </button>
 
-              {!editId ? (
-                /* ================= NEW ENTRY MODAL UI ================= */
-                <div className="flex-1 flex flex-col bg-white overflow-hidden">
-                  <div className="p-6 md:p-8 border-b border-slate-100 bg-white">
-                    <h2 className="text-[13px] md:text-[15px] font-bold text-slate-900 uppercase tracking-widest">
-                      New {activeTab === 'individual' ? 'Entry Record' : 'Batch Album'}
-                    </h2>
+      {!editId ? (
+        /* ================= NEW ENTRY MODAL UI ================= */
+        <div className="flex-1 flex flex-col bg-white overflow-hidden">
+          <div className="p-6 md:p-8 border-b border-slate-100 bg-white">
+            <h2 className="text-[13px] md:text-[15px] font-bold text-slate-900 uppercase tracking-widest">
+              New {activeTab === 'individual' ? 'Entry Record' : 'Batch Album'}
+            </h2>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 md:space-y-8">
+            <div className="relative">
+              <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">
+                {activeTab === 'individual' ? 'Album Name' : 'Batch Album Title'}
+              </label>
+              <input 
+                type="text" 
+                autoComplete="off"
+                onFocus={() => setIsAlbumFocused(true)}
+                onBlur={() => setTimeout(() => setIsAlbumFocused(false), 200)}
+                className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" 
+                value={albumName} 
+                onChange={(e) => setAlbumName(e.target.value)} 
+              />
+              {activeTab === 'individual' && (
+                <AnimatePresence>
+                  {isAlbumFocused && (
+                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-md shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+                      {uniqueAlbums.filter(name => name.toLowerCase().includes(albumName.toLowerCase())).map((suggestion) => (
+                        <div key={suggestion} onClick={() => setAlbumName(suggestion)} className="p-4 hover:bg-blue-50 text-[12px] text-slate-700 font-bold cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0">
+                          <Folder size={14} className="text-blue-400" /> {suggestion}
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              <div>
+                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Link</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" 
+                  value={shareLink} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setShareLink(val);
+                    // Smart detection: If link is a google user content image, auto-set thumbnail
+                    if (val.includes("googleusercontent.com")) {
+                      setThumbUrl(val);
+                    }
+                  }} 
+                />
+              </div>
+              <div>
+                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Thumbnail URL</label>
+                <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={thumbUrl} onChange={(e) => setThumbUrl(e.target.value)} />
+              </div>
+            </div>
+
+            {activeTab === 'batch' && (
+              <div>
+                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Custom Search Code</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. EVENT-2024"
+                  className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-blue-600 font-bold outline-none focus:border-blue-600 transition-all uppercase" 
+                  value={batchAlbumCode} 
+                  onChange={(e) => setBatchAlbumCode(e.target.value)} 
+                />
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <label className="block text-slate-400 font-bold text-[11px] md:text-[12px] uppercase tracking-widest">Live Preview</label>
+              <div className="border border-slate-100 rounded-md bg-slate-50 p-4 md:p-6 min-h-[250px] md:min-h-[350px] flex items-center justify-center overflow-hidden">
+                {thumbUrl ? (
+                  <img key={thumbUrl} src={thumbUrl} alt="Preview" referrerPolicy="no-referrer" className="max-w-full max-h-[40vh] md:max-h-[45vh] object-contain shadow-sm" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                ) : (
+                  <div className="text-center opacity-50">
+                    <ImageIcon className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2" />
+                    <p className="text-[11px] md:text-[12px] font-bold uppercase tracking-widest text-slate-500">Thumbnail Preview Area</p>
                   </div>
+                )}
+              </div>
+            </div>
+          </div>
 
-                  <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 md:space-y-8">
-                    <div className="relative">
-                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">
-                        {activeTab === 'individual' ? 'Album Name' : 'Batch Album Title'}
-                      </label>
+          <div className="p-6 md:p-8 border-t border-slate-100 bg-white flex justify-end gap-3">
+            <button onClick={() => setShowModal(false)} className="px-8 py-3.5 bg-white text-slate-600 border border-slate-200 font-bold rounded-md text-[13px] hover:bg-slate-50 transition-all cursor-pointer uppercase">Cancel</button>
+            <button onClick={() => setShowConfirm(true)} className="px-8 py-3.5 bg-blue-600 text-white font-bold rounded-md text-[13px] shadow-md hover:bg-blue-700 transition-all cursor-pointer uppercase">Save Record</button>
+          </div>
+        </div>
+      ) : (
+        /* ================= PREVIEW / EDIT MODAL UI ================= */
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden h-full">
+          <div className="h-[40vh] md:h-auto md:flex-[2] bg-slate-950 flex items-center justify-center relative overflow-hidden">
+            {thumbUrl ? (
+              <img key={thumbUrl} src={thumbUrl} alt="Preview" referrerPolicy="no-referrer" className="w-full h-full object-contain" />
+            ) : (
+              <div className="flex flex-col items-center justify-center text-slate-700 opacity-20">
+                <ImageIcon className="w-12 h-12 md:w-16 md:h-16 mb-2" />
+                <p className="text-[11px] md:text-[12px] font-bold uppercase tracking-widest">No Image Preview</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-full md:min-w-[320px] md:max-w-[450px] bg-white border-t md:border-t-0 md:border-l border-slate-100 flex flex-col overflow-hidden">
+            <div className="p-5 md:p-6 border-b border-slate-50 bg-white sticky top-0 z-10">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="bg-blue-50 p-1.5 rounded-md">
+                  {isEditMode ? <Pencil className="text-blue-600 w-4 h-4" /> : <Info className="text-blue-600 w-4 h-4" />}
+                </div>
+                <h3 className="text-[11px] md:text-[12px] font-bold text-slate-400 uppercase tracking-widest">
+                  {isEditMode ? "Edit Record" : "Information"}
+                </h3>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 md:p-6">
+              <AnimatePresence mode="wait">
+                {isEditMode ? (
+                  <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5 md:space-y-6">
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Title / Name</label>
+                      <input type="text" autoComplete="off" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={albumName} onChange={(e) => setAlbumName(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Album Link</label>
                       <input 
                         type="text" 
-                        autoComplete="off"
-                        onFocus={() => setIsAlbumFocused(true)}
-                        onBlur={() => setTimeout(() => setIsAlbumFocused(false), 200)}
                         className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" 
-                        value={albumName} 
-                        onChange={(e) => setAlbumName(e.target.value)} 
+                        value={shareLink} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setShareLink(val);
+                          if (val.includes("googleusercontent.com")) {
+                            setThumbUrl(val);
+                          }
+                        }} 
                       />
-                      {activeTab === 'individual' && (
-                        <AnimatePresence>
-                          {isAlbumFocused && (
-                            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-md shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                              {uniqueAlbums.filter(name => name.toLowerCase().includes(albumName.toLowerCase())).map((suggestion) => (
-                                <div key={suggestion} onClick={() => setAlbumName(suggestion)} className="p-4 hover:bg-blue-50 text-[12px] text-slate-700 font-bold cursor-pointer transition-colors flex items-center gap-3 border-b border-slate-50 last:border-0">
-                                  <Folder size={14} className="text-blue-400" /> {suggestion}
-                                </div>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      )}
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                      <div>
-                        <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Link</label>
-                        <input 
-                          type="text" 
-                          className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" 
-                          value={shareLink} 
-                          onChange={(e) => setShareLink(e.target.value)} 
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Thumbnail URL</label>
-                        <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={thumbUrl} onChange={(e) => setThumbUrl(e.target.value)} />
-                      </div>
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Thumbnail URL</label>
+                      <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={thumbUrl} onChange={(e) => setThumbUrl(e.target.value)} />
                     </div>
-
                     {activeTab === 'batch' && (
                       <div>
-                        <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Custom Search Code</label>
-                        <input 
-                          type="text" 
-                          placeholder="e.g. EVENT-2024"
-                          className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-blue-600 font-bold outline-none focus:border-blue-600 transition-all uppercase" 
-                          value={batchAlbumCode} 
-                          onChange={(e) => setBatchAlbumCode(e.target.value)} 
-                        />
+                        <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Search Code</label>
+                        <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-blue-600 font-bold outline-none focus:border-blue-600 transition-all uppercase" value={batchAlbumCode} onChange={(e) => setBatchAlbumCode(e.target.value)} />
                       </div>
                     )}
-
-                    <div className="space-y-3">
-                      <label className="block text-slate-400 font-bold text-[11px] md:text-[12px] uppercase tracking-widest">Live Preview</label>
-                      <div className="border border-slate-100 rounded-md bg-slate-50 p-4 md:p-6 min-h-[250px] md:min-h-[350px] flex items-center justify-center overflow-hidden">
-                        {thumbUrl ? (
-                          <img key={thumbUrl} src={thumbUrl} alt="Preview" referrerPolicy="no-referrer" className="max-w-full max-h-[40vh] md:max-h-[45vh] object-contain shadow-sm" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                        ) : (
-                          <div className="text-center opacity-50">
-                            <ImageIcon className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-2" />
-                            <p className="text-[11px] md:text-[12px] font-bold uppercase tracking-widest text-slate-500">Thumbnail Preview Area</p>
-                          </div>
-                        )}
+                  </motion.div>
+                ) : (
+                  <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6 md:space-y-8">
+                    <div className="space-y-5 md:space-y-6">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Title</p>
+                        <p className="text-[13px] font-bold text-slate-900 bg-slate-50 p-3.5 md:p-4 rounded-md border border-slate-100">{albumName || "N/A"}</p>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="p-6 md:p-8 border-t border-slate-100 bg-white flex justify-end gap-3">
-                    <button onClick={() => setShowModal(false)} className="px-8 py-3.5 bg-white text-slate-600 border border-slate-200 font-bold rounded-md text-[13px] hover:bg-slate-50 transition-all cursor-pointer uppercase">Cancel</button>
-                    <button onClick={() => setShowConfirm(true)} className="px-8 py-3.5 bg-blue-600 text-white font-bold rounded-md text-[13px] shadow-md hover:bg-blue-700 transition-all cursor-pointer uppercase">Save Record</button>
-                  </div>
-                </div>
-              ) : (
-                /* ================= PREVIEW / EDIT MODAL UI ================= */
-                <div className="flex-1 flex flex-col md:flex-row overflow-hidden h-full">
-                  <div className="h-[40vh] md:h-auto md:flex-[2] bg-slate-950 flex items-center justify-center relative overflow-hidden">
-                    {thumbUrl ? (
-                      <img key={thumbUrl} src={thumbUrl} alt="Preview" referrerPolicy="no-referrer" className="w-full h-full object-contain" />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-slate-700 opacity-20">
-                        <ImageIcon className="w-12 h-12 md:w-16 md:h-16 mb-2" />
-                        <p className="text-[11px] md:text-[12px] font-bold uppercase tracking-widest">No Image Preview</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-full md:min-w-[320px] md:max-w-[450px] bg-white border-t md:border-t-0 md:border-l border-slate-100 flex flex-col overflow-hidden">
-                    <div className="p-5 md:p-6 border-b border-slate-50 bg-white sticky top-0 z-10">
-                      <div className="flex items-center gap-3 mb-1">
-                        <div className="bg-blue-50 p-1.5 rounded-md">
-                          {isEditMode ? <Pencil className="text-blue-600 w-4 h-4" /> : <Info className="text-blue-600 w-4 h-4" />}
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Search Code</p>
+                        <div onClick={() => { 
+                          const code = activeTab === 'individual' 
+                            ? records.find(r => r.id === editId)?.photo_code 
+                            : batchAlbumCode;
+                          if(code) { navigator.clipboard.writeText(code); notify("Copied!", "success"); }
+                        }} className="bg-blue-50 border border-blue-100 p-3.5 md:p-4 rounded-md flex items-center justify-between cursor-pointer group hover:bg-blue-100 transition-all">
+                          <p className="text-[13px] font-bold text-blue-700">{activeTab === 'individual' ? records.find(r => r.id === editId)?.photo_code : batchAlbumCode}</p>
+                          <Copy size={16} className="text-blue-300 group-hover:text-blue-600" />
                         </div>
-                        <h3 className="text-[11px] md:text-[12px] font-bold text-slate-400 uppercase tracking-widest">
-                          {isEditMode ? "Edit Record" : "Information"}
-                        </h3>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Source</p>
+                        <a href={shareLink} target="_blank" className="text-[13px] text-blue-600 font-bold underline flex items-center gap-2 hover:text-blue-800 transition-all cursor-pointer uppercase">External Album Link <ExternalLink size={14} /></a>
                       </div>
                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-                    <div className="flex-1 overflow-y-auto p-5 md:p-6">
-                      <AnimatePresence mode="wait">
-                        {isEditMode ? (
-                          <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5 md:space-y-6">
-                            <div>
-                              <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Title / Name</label>
-                              <input type="text" autoComplete="off" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={albumName} onChange={(e) => setAlbumName(e.target.value)} />
-                            </div>
-                            <div>
-                              <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Album Link</label>
-                              <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={shareLink} onChange={(e) => setShareLink(e.target.value)} />
-                            </div>
-                            <div>
-                              <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Thumbnail URL</label>
-                              <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={thumbUrl} onChange={(e) => setThumbUrl(e.target.value)} />
-                            </div>
-                            {activeTab === 'batch' && (
-                              <div>
-                                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Search Code</label>
-                                <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-blue-600 font-bold outline-none focus:border-blue-600 transition-all uppercase" value={batchAlbumCode} onChange={(e) => setBatchAlbumCode(e.target.value)} />
-                              </div>
-                            )}
-                          </motion.div>
-                        ) : (
-                          <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6 md:space-y-8">
-                            <div className="space-y-5 md:space-y-6">
-                              <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Title</p>
-                                <p className="text-[13px] font-bold text-slate-900 bg-slate-50 p-3.5 md:p-4 rounded-md border border-slate-100">{albumName || "N/A"}</p>
-                              </div>
-                              <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Search Code</p>
-                                <div onClick={() => { 
-                                  const code = activeTab === 'individual' 
-                                    ? records.find(r => r.id === editId)?.photo_code 
-                                    : batchAlbumCode;
-                                  if(code) { navigator.clipboard.writeText(code); notify("Copied!", "success"); }
-                                }} className="bg-blue-50 border border-blue-100 p-3.5 md:p-4 rounded-md flex items-center justify-between cursor-pointer group hover:bg-blue-100 transition-all">
-                                  <p className="text-[13px] font-bold text-blue-700">{activeTab === 'individual' ? records.find(r => r.id === editId)?.photo_code : batchAlbumCode}</p>
-                                  <Copy size={16} className="text-blue-300 group-hover:text-blue-600" />
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Source</p>
-                                <a href={shareLink} target="_blank" className="text-[13px] text-blue-600 font-bold underline flex items-center gap-2 hover:text-blue-800 transition-all cursor-pointer uppercase">External Album Link <ExternalLink size={14} /></a>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                    <div className="p-5 md:p-6 bg-slate-50/50 border-t border-slate-100 flex flex-col gap-2.5 md:gap-3">
-                      {isEditMode ? (
-                        <>
-                          <button onClick={() => setShowConfirm(true)} className="w-full p-4 bg-blue-600 text-white font-bold rounded-md text-[13px] shadow-md hover:bg-blue-700 transition-all cursor-pointer uppercase tracking-widest">Save Changes</button>
-                          <button onClick={() => setShowDiscardConfirm(true)} className="w-full p-4 bg-white text-slate-600 border border-slate-200 font-bold rounded-md text-[13px] hover:bg-slate-100 transition-all cursor-pointer uppercase tracking-widest">Discard</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => setIsEditMode(true)} className="w-full p-3.5 md:p-4 bg-blue-600 text-white font-bold rounded-md text-[12px] md:text-[13px] flex items-center justify-center gap-2 shadow-md hover:bg-blue-700 transition-all cursor-pointer uppercase tracking-widest"><Pencil size={15} /> Edit Details</button>
-                          <button 
-                            onClick={() => {
-                              const target = activeTab === 'individual' 
-                                ? records.find(r => r.id === editId) 
-                                : batchRecords.find(b => b.id === editId);
-                              setShowQRModal(target);
-                            }} 
-                            className="w-full p-3.5 md:p-4 bg-slate-900 text-white font-bold rounded-md text-[12px] md:text-[13px] flex items-center justify-center gap-2 hover:bg-slate-800 transition-all cursor-pointer uppercase tracking-widest"
-                          >
-                            <QrCode size={15} /> View QR Code
-                          </button>
-                          <button onClick={() => setShowDeleteConfirm(editId!)} className="w-full p-3 text-red-500 font-bold text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-red-50 rounded-md transition-all cursor-pointer">Delete Record</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+            <div className="p-5 md:p-6 bg-slate-50/50 border-t border-slate-100 flex flex-col gap-2.5 md:gap-3">
+              {isEditMode ? (
+                <>
+                  <button onClick={() => setShowConfirm(true)} className="w-full p-4 bg-blue-600 text-white font-bold rounded-md text-[13px] shadow-md hover:bg-blue-700 transition-all cursor-pointer uppercase tracking-widest">Save Changes</button>
+                  <button onClick={() => setShowDiscardConfirm(true)} className="w-full p-4 bg-white text-slate-600 border border-slate-200 font-bold rounded-md text-[13px] hover:bg-slate-100 transition-all cursor-pointer uppercase tracking-widest">Discard</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => setIsEditMode(true)} className="w-full p-3.5 md:p-4 bg-blue-600 text-white font-bold rounded-md text-[12px] md:text-[13px] flex items-center justify-center gap-2 shadow-md hover:bg-blue-700 transition-all cursor-pointer uppercase tracking-widest"><Pencil size={15} /> Edit Details</button>
+                  <button 
+                    onClick={() => {
+                      const target = activeTab === 'individual' 
+                        ? records.find(r => r.id === editId) 
+                        : batchRecords.find(b => b.id === editId);
+                      setShowQRModal(target);
+                    }} 
+                    className="w-full p-3.5 md:p-4 bg-slate-900 text-white font-bold rounded-md text-[12px] md:text-[13px] flex items-center justify-center gap-2 hover:bg-slate-800 transition-all cursor-pointer uppercase tracking-widest"
+                  >
+                    <QrCode size={15} /> View QR Code
+                  </button>
+                  <button onClick={() => setShowDeleteConfirm(editId!)} className="w-full p-3 text-red-500 font-bold text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-red-50 rounded-md transition-all cursor-pointer">Delete Record</button>
+                </>
               )}
-            </motion.div>
+            </div>
           </div>
-        )}
+        </div>
+      )}
+    </motion.div>
+  </div>
+)}
 
 {/* --- UNIVERSAL QR MODAL --- */}
         <AnimatePresence>
