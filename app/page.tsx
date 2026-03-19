@@ -1,47 +1,51 @@
 // app/page.tsx
-import { Metadata } from 'next';
-import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
-import MainUI from "./components/MainUI"; // Dito natin tatawagin yung UI mo
-import { searchPhotoRecords } from "@/app/actions/photoActions";
-
-type Props = {
-  searchParams: { c?: string; s?: string };
-};
-
-// ETO YUNG AUTOMATIC THUMBNAIL LOGIC
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const code = searchParams.c;
-  const siteUrl = "https://dbcas.vercel.app/"; // PALITAN MO ITO NG LIVE URL MO
+  const { c: code } = await searchParams; // Await for Next.js 15+ compatibility
+  const siteUrl = "https://dbcas.vercel.app";
 
   if (code) {
     const result = await searchPhotoRecords(code);
+    
     if (result.success && result.data.length > 0) {
       const record = result.data[0];
+      const imageUrl = record.thumb_url; // Directly using your DB field name
+
       return {
+        metadataBase: new URL(siteUrl),
         title: `Verified: ${record.photo_code}`,
+        description: `Album: ${record.album_name}`,
         openGraph: {
           title: `Verified Image: ${record.photo_code}`,
-          description: `Album: ${record.album_name}`,
-          url: `${siteUrl}/?c=${code}`,
-          images: [{ url: record.thumb_url }], // ETO YUNG LALABAS NA PICTURE SA FB
+          description: `Album: ${record.album_name} | Click to view details.`,
+          url: `/?c=${code}`,
+          siteName: 'DBCAS Digital',
+          images: [
+            {
+              url: imageUrl,
+              width: 1200, // Standard OG width
+              height: 630, // Standard OG height
+              alt: `Preview of ${record.photo_code}`,
+            },
+          ],
           type: 'website',
+        },
+        twitter: {
+          card: 'summary_large_image', // This makes the image big and clickable on X
+          title: `Verified: ${record.photo_code}`,
+          description: `Album: ${record.album_name}`,
+          images: [imageUrl],
         },
       };
     }
   }
 
-  // Default SEO pag walang sine-search
+  // Fallback for home page
   return {
+    metadataBase: new URL(siteUrl),
     title: 'Capture and Share - Digital Image Sharing',
     description: 'Digital Image Sharing made better!',
+    openGraph: {
+      images: ['/og-fallback.jpg'], // Make sure this exists in your /public folder
+    },
   };
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>}>
-      <MainUI />
-    </Suspense>
-  );
 }
