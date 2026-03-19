@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, QrCode, Download, Facebook, 
-  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink
+  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink, Maximize2
 } from "lucide-react"; 
 import { searchPhotoRecords, getDownloadBlob } from "@/app/actions/photoActions";
 import { getBatchAlbums } from "@/app/actions/batchActions";
@@ -19,6 +19,7 @@ function VerificationContent() {
   const [showScanner, setShowScanner] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   
   const [notification, setNotification] = useState<{msg: string, type: 'success' | 'info'} | null>(null);
 
@@ -84,25 +85,22 @@ function VerificationContent() {
 
     let cleanQuery = query.trim().toUpperCase();
     
-    // Auto-format dashless patterns for Individual Photos (AB12345678 -> AB-1234-5678)
     const dashlessPattern = /^([A-Z]{2})(\d{4})(\d{4})$/;
     if (dashlessPattern.test(cleanQuery)) {
       cleanQuery = cleanQuery.replace(dashlessPattern, '$1-$2-$3');
     }
 
     try {
-      // Step 1: Search Individual Photos
       const photoResult = await searchPhotoRecords(cleanQuery);
       let foundPhotos = (photoResult?.success && photoResult.data) ? (photoResult.data as any[]) : [];
 
-      // Step 2: Search Batch Albums (Keyword/Partial/Title Matching)
       const batchResult = await getBatchAlbums();
       let matchedBatches: any[] = [];
       
       if (batchResult?.success && Array.isArray(batchResult.data)) {
         matchedBatches = (batchResult.data as any[])
           .filter((b: any) => {
-            const searchNormalized = cleanQuery.replace(/\s/g, ''); // Remove spaces for code matching
+            const searchNormalized = cleanQuery.replace(/\s/g, '');
             const titleMatch = b.title.toUpperCase().includes(cleanQuery);
             const codeMatch = b.album_code.toUpperCase().includes(searchNormalized);
             return titleMatch || codeMatch;
@@ -190,6 +188,34 @@ function VerificationContent() {
   return (
     <div className="min-h-screen bg-[#f7f9ff] text-slate-900 font-sans">
       
+      {/* FULLSCREEN IMAGE MODAL */}
+      <AnimatePresence>
+        {fullscreenImage && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setFullscreenImage(null)}
+            className="fixed inset-0 z-[300] bg-slate-950 flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+          >
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="fixed top-6 right-6 text-white p-2 bg-white/10 rounded-full backdrop-blur-md"
+            >
+              <X size={32} />
+            </motion.button>
+            <motion.img 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              src={fullscreenImage}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              referrerPolicy="no-referrer"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* NOTIFICATION CHIP */}
       <AnimatePresence>
         {notification && (
@@ -271,70 +297,81 @@ function VerificationContent() {
             </div>
 
             {selectedRecord && (
-              <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden border border-slate-100">
-                <div className="p-4 md:p-8">
-                  <div className="w-full rounded-md overflow-hidden mb-6 relative aspect-video bg-slate-50">
-                    <img 
-                      src={selectedRecord.thumb_url} 
-                      alt="Verified" 
-                      className="w-full h-full object-contain" 
-                      referrerPolicy="no-referrer" 
-                    />
-                    <div className={`absolute top-4 left-4 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg text-white ${selectedRecord.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
+              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+                <div className="p-4 md:p-10">
+                  {/* LARGER PREVIEW AREA */}
+                  <div className="w-full rounded-xl overflow-hidden mb-8 relative bg-slate-50 group shadow-inner">
+                    <div 
+                      onClick={() => setFullscreenImage(selectedRecord.thumb_url)}
+                      className="w-full cursor-zoom-in"
+                    >
+                      <img 
+                        src={selectedRecord.thumb_url} 
+                        alt="Verified" 
+                        className="w-full h-auto min-h-[300px] max-h-[70vh] object-contain transition-transform duration-700 group-hover:scale-[1.02]" 
+                        referrerPolicy="no-referrer" 
+                      />
+                    </div>
+                    
+                    {/* FULLSCREEN BUTTON OVERLAY */}
+                    <button 
+                      onClick={() => setFullscreenImage(selectedRecord.thumb_url)}
+                      className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-slate-900"
+                    >
+                      <Maximize2 size={20} />
+                    </button>
+
+                    <div className={`absolute top-4 left-4 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg text-white ${selectedRecord.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
                       {selectedRecord.isBatch ? "Full Album" : "Souvenir Photo"}
                     </div>
-                    {selectedRecord.isBatch && (
-                       <div className="absolute top-4 right-4 bg-white/20 backdrop-blur-md text-white p-2 rounded-lg">
-                          <Layers size={20} />
-                       </div>
-                    )}
                   </div>
 
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                      <h2 className="text-[15px] font-bold text-slate-900 uppercase tracking-tight mb-1">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                    <div className="space-y-2">
+                      <h2 className="text-[20px] md:text-[24px] font-black text-slate-900 uppercase tracking-tight leading-tight">
                         {selectedRecord.album_name || selectedRecord.title}
                       </h2>
                       <div className="flex flex-col gap-1">
-                        <p className={`text-[13px] font-bold uppercase ${selectedRecord.isBatch ? 'text-green-600' : 'text-blue-600'}`}>
+                        <p className={`text-[15px] font-black uppercase tracking-wider ${selectedRecord.isBatch ? 'text-green-600' : 'text-blue-600'}`}>
                           {selectedRecord.photo_code || selectedRecord.album_code}
                         </p>
-                        <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                          {selectedRecord.isBatch ? "Full Collection Access" : `Captured: ${new Date(selectedRecord.created_at).toLocaleDateString()}`}
+                        <p className="text-slate-400 text-[12px] font-bold uppercase tracking-widest">
+                          {selectedRecord.isBatch ? "Complete Collection Access" : `Captured: ${new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
+                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
                       {selectedRecord.isBatch ? (
                         <a 
                           href={selectedRecord.share_link} 
                           target="_blank" 
-                          className="w-full md:w-auto bg-green-600 text-white px-8 py-3 rounded-md font-bold text-[12px] flex items-center justify-center gap-2 hover:bg-green-700 transition-all active:scale-95 uppercase cursor-pointer"
+                          className="w-full md:w-auto bg-green-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-green-700 transition-all active:scale-95 uppercase tracking-widest shadow-xl cursor-pointer"
                         >
-                          <ExternalLink size={16} /> Open Full Album
+                          <ExternalLink size={18} /> Open Full Album
                         </a>
                       ) : (
                         <button 
                           onClick={() => handleDownload(selectedRecord.share_link, selectedRecord.photo_code)} 
                           disabled={downloading} 
-                          className="w-full md:w-auto bg-blue-600 text-white px-6 py-3 rounded-md font-bold text-[12px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase cursor-pointer"
+                          className="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest shadow-xl cursor-pointer"
                         >
-                          {downloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />} Download Photo
+                          {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />} Download Photo
                         </button>
                       )}
                       
                       <button 
                         onClick={shareToFacebook} 
-                        className="w-full md:w-auto bg-[#1877F2] text-white px-6 py-3 rounded-md font-bold text-[12px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 uppercase cursor-pointer"
+                        className="w-full md:w-auto bg-[#1877F2] text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 uppercase tracking-widest shadow-xl cursor-pointer"
                       >
-                        <Facebook size={16} /> Share
+                        <Facebook size={18} /> Share
                       </button>
                       <button 
                         onClick={copyToClipboard} 
-                        className={`w-full md:w-auto p-3 px-6 md:px-3 rounded-md border transition-all active:scale-95 flex items-center justify-center gap-2 md:gap-0 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-200 text-slate-400 hover:text-blue-600"}`}
+                        className={`w-full md:w-auto p-4 px-8 rounded-xl border-2 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 shadow-sm"}`}
                       >
-                        {copied ? <Check size={18} /> : <Copy size={18} />}
+                        {copied ? <Check size={20} /> : <Copy size={20} />}
+                        <span className="md:hidden font-black text-[13px] uppercase tracking-widest">Copy Link</span>
                       </button>
                     </div>
                   </div>
@@ -343,7 +380,7 @@ function VerificationContent() {
             )}
 
             {!selectedRecord && results.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {results.map((r) => (
                   <div 
                     key={r.isBatch ? `batch-${r.id}` : `photo-${r.id}`} 
@@ -352,26 +389,21 @@ function VerificationContent() {
                         const code = r.photo_code || r.album_code;
                         window.history.pushState({ c: code }, "", `?c=${code}`); 
                     }} 
-                    className="bg-white p-3 rounded-lg border border-slate-200 hover:border-blue-600 transition-all cursor-pointer group shadow-sm hover:shadow-lg relative"
+                    className="bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-600 transition-all cursor-pointer group shadow-md hover:shadow-2xl relative"
                   >
-                    <div className="w-full aspect-video rounded-md overflow-hidden mb-3 bg-slate-100 relative">
-                      <img src={r.thumb_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
-                      <div className={`absolute top-2 left-2 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider text-white shadow-md ${r.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
+                    <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-4 bg-slate-50 relative">
+                      <img src={r.thumb_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
+                      <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-md ${r.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
                         {r.isBatch ? "Full Album" : "Souvenir Photo"}
                       </div>
-                      {r.isBatch && (
-                         <div className="absolute top-2 right-2 bg-white/30 backdrop-blur-sm text-white p-1 rounded shadow">
-                            <Layers size={14} />
-                         </div>
-                      )}
                     </div>
-                    <div className="px-1">
-                      <h3 className="text-[13px] font-bold text-slate-900 uppercase tracking-tight line-clamp-1">{r.album_name || r.title}</h3>
-                      <div className="flex justify-between items-center mt-1">
-                        <p className={`font-bold text-[12px] uppercase ${r.isBatch ? 'text-green-600' : 'text-blue-600'}`}>
+                    <div className="px-1 space-y-2">
+                      <h3 className="text-[14px] font-black text-slate-900 uppercase tracking-tight line-clamp-1">{r.album_name || r.title}</h3>
+                      <div className="flex justify-between items-center">
+                        <p className={`font-black text-[13px] uppercase tracking-wider ${r.isBatch ? 'text-green-600' : 'text-blue-600'}`}>
                           {r.photo_code || r.album_code}
                         </p>
-                        <ArrowLeft className="text-slate-200 group-hover:text-blue-600 rotate-180 transition-all" size={14} />
+                        <ArrowLeft className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 rotate-180 transition-all" size={16} />
                       </div>
                     </div>
                   </div>
@@ -382,7 +414,7 @@ function VerificationContent() {
         )}
       </AnimatePresence>
 
-      {/* QR SCANNER MODAL */}
+      {/* SCANNER MODAL */}
       <AnimatePresence>
         {showScanner && (
           <div className="fixed inset-0 backdrop-blur-md z-[100] flex items-center justify-center p-4">
