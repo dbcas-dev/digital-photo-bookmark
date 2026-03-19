@@ -12,7 +12,7 @@ type Props = {
 // ETO YUNG AUTOMATIC THUMBNAIL LOGIC
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const code = searchParams.c;
-  const siteUrl = "https://yourdomain.com"; // PALITAN MO ITO NG LIVE URL MO
+  const siteUrl = "https://dbcas.vercel.app/"; // PALITAN MO ITO NG LIVE URL MO
 
   if (code) {
     const result = await searchPhotoRecords(code);
