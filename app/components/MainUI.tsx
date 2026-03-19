@@ -31,7 +31,7 @@ function VerificationContent() {
     if (loading) {
       document.title = "Searching...";
     } else if (selectedRecord) {
-      document.title = `${record.photo_code} | ${record.album_name} - Capture and Share`;
+      document.title = `${selectedRecord.photo_code} | ${selectedRecord.album_name} - Capture and Share - Digital Image Sharing`;
     } else if (results.length > 1) {
       document.title = `Results for "${searchQuery}"`;
     } else {
