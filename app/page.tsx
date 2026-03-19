@@ -26,11 +26,11 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         return {
           // FIX #2: Explicitly set metadataBase to resolve relative paths
           metadataBase: new URL(siteUrl),
-          title: `Verified: ${record.photo_code}`,
-          description: `Album: ${record.album_name}`,
+          title: `${record.photo_code} | ${record.album_name} - Capture and Share`,
+          description: `Album: ${record.album_name} - Capture and Share - Digital Image Sharing`,
           openGraph: {
-            title: `Verified Image: ${record.photo_code}`,
-            description: `Album: ${record.album_name} | Verified via DBCAS`,
+            title: `${record.photo_code} | ${record.album_name} - Capture and Share`,
+            description: `Album: ${record.album_name} - Capture and Share - Digital Image Sharing`,
             url: `/?c=${code}`,
             siteName: 'DBCAS',
             // FIX #3: Use absolute URL and specify dimensions
@@ -45,8 +45,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
           },
           twitter: {
             card: 'summary_large_image',
-            title: `Verified: ${record.photo_code}`,
-            description: `Album: ${record.album_name}`,
+            title: `${record.photo_code} | ${record.album_name} - Capture and Share`,
+            description: `Album: ${record.album_name} - Capture and Share - Digital Image Sharing`,
             images: [imageUrl],
           },
         };
@@ -59,7 +59,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   // Default Fallback
   return {
     metadataBase: new URL(siteUrl),
-    title: 'Capture and Share',
+    title: 'Capture and Share - Digital Image Sharing made better!',
     description: 'Digital Image Sharing made better!',
     openGraph: {
       images: ['/og-image.jpg'], // Make sure this file exists in your /public folder!
