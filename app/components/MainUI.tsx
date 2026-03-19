@@ -26,6 +26,43 @@ function VerificationContent() {
   const codeFromURL = searchParams.get("c");
   const keywordFromURL = searchParams.get("s");
 
+  // --- 1. DYNAMIC TITLE LOGIC ---
+  useEffect(() => {
+    if (loading) {
+      document.title = "Searching...";
+    } else if (selectedRecord) {
+      document.title = `Verified: ${selectedRecord.photo_code} | DBCAS`;
+    } else if (results.length > 1) {
+      document.title = `Results for "${searchQuery}"`;
+    } else {
+      document.title = "Capture and Share - Digital Image Sharing";
+    }
+  }, [selectedRecord, results, searchQuery, loading]);
+
+  // --- 2. BROWSER BACK BUTTON (POPSTATE) LOGIC ---
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const c = params.get("c");
+      const s = params.get("s");
+
+      if (!c && !s) {
+        // Reset to Home State if no params exist
+        setSelectedRecord(null);
+        setResults([]);
+        setSearchQuery("");
+      } else if (c) {
+        handleSearch(c);
+      } else if (s) {
+        setSearchQuery(s.toUpperCase());
+        handleSearch(s);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   useEffect(() => {
     if (codeFromURL) {
       handleSearch(codeFromURL);
@@ -56,14 +93,22 @@ function VerificationContent() {
       setResults(result.data);
       if (result.data.length === 1) {
         setSelectedRecord(result.data[0]);
-        window.history.pushState(null, "", `?c=${result.data[0].photo_code}`);
+        // Update URL with history push so back button works
+        window.history.pushState({ c: result.data[0].photo_code }, "", `?c=${result.data[0].photo_code}`);
       } else {
-        window.history.pushState(null, "", `?s=${encodeURIComponent(cleanQuery)}`);
+        window.history.pushState({ s: cleanQuery }, "", `?s=${encodeURIComponent(cleanQuery)}`);
       }
     } else {
       setShowErrorModal(true);
     }
     setLoading(false);
+  };
+
+  const resetSearch = () => {
+    setSelectedRecord(null);
+    setResults([]);
+    setSearchQuery("");
+    window.history.pushState({}, '', '/');
   };
 
   const getShareLink = (): string => {
@@ -150,17 +195,10 @@ function VerificationContent() {
     notify("Redirecting to Facebook...", "info");
   };
 
-  const resetSearch = () => {
-    setSelectedRecord(null);
-    setResults([]);
-    setSearchQuery("");
-    window.history.pushState({}, '', '/');
-  };
-
   return (
     <div className="min-h-screen bg-[#f7f9ff] text-slate-900 font-sans">
       
-      {/* 1. NOTIFICATION CHIP */}
+      {/* NOTIFICATION CHIP */}
       <AnimatePresence>
         {notification && (
           <motion.div 
@@ -193,7 +231,6 @@ function VerificationContent() {
 
             <div className="w-full max-w-md space-y-4">
               <div className="relative">
-                {/* 2. UPPERCASE SEARCH BOX */}
                 <input 
                   type="text" 
                   placeholder="PHOTO CODE OR KEYWORD..."
@@ -244,7 +281,7 @@ function VerificationContent() {
             {selectedRecord && (
               <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden border border-slate-100">
                 <div className="p-4 md:p-8">
-                  <div className="w-full rounded-md overflow-hidden bg-slate-950 mb-6 relative aspect-[1454/969]">
+                  <div className="w-full rounded-md overflow-hidden mb-6 relative aspect-[1454/969]">
                     <img src={selectedRecord.thumb_url} alt="Verified" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   </div>
 
@@ -253,21 +290,19 @@ function VerificationContent() {
                       <h2 className="text-[15px] font-bold text-slate-900 uppercase tracking-tight mb-1">{selectedRecord.album_name}</h2>
                       <div className="flex flex-col gap-1">
                         <p className="text-blue-600 text-[13px] font-bold uppercase">{selectedRecord.photo_code}</p>
-                        {/* 3. DATE CREATION FOR RESULTS */}
                         <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
                           Captured: {new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
                     </div>
 
-                    {/* 4. MOBILE STACKED ACTION BUTTONS */}
                     <div className="flex flex-col md:flex-row items-center gap-2 w-full md:w-auto">
                       <button 
                         onClick={() => handleDownload(selectedRecord.share_link, selectedRecord.photo_code)} 
                         disabled={downloading} 
                         className="w-full md:w-auto bg-blue-600 text-white px-6 py-3 rounded-md font-bold text-[12px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase cursor-pointer"
                       >
-                        {downloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />} Download Image
+                        {downloading ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />} Download Photo
                       </button>
                       <button 
                         onClick={shareToFacebook} 
@@ -291,7 +326,7 @@ function VerificationContent() {
             {!selectedRecord && results.length > 1 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {results.map((r) => (
-                  <div key={r.id} onClick={() => { setSelectedRecord(r); window.history.pushState(null, "", `?c=${r.photo_code}`); }} className="bg-white p-3 rounded-lg border border-slate-200 hover:border-blue-600 transition-all cursor-pointer group shadow-sm hover:shadow-lg">
+                  <div key={r.id} onClick={() => { setSelectedRecord(r); window.history.pushState({ c: r.photo_code }, "", `?c=${r.photo_code}`); }} className="bg-white p-3 rounded-lg border border-slate-200 hover:border-blue-600 transition-all cursor-pointer group shadow-sm hover:shadow-lg">
                     <div className="w-full aspect-video rounded-md overflow-hidden mb-3 bg-slate-100">
                       <img src={r.thumb_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
                     </div>
@@ -299,7 +334,6 @@ function VerificationContent() {
                       <h3 className="text-[13px] font-bold text-slate-900 uppercase tracking-tight line-clamp-1">{r.album_name}</h3>
                       <div className="flex justify-between items-center mt-1">
                         <p className="text-blue-600 font-bold text-[12px] uppercase">{r.photo_code}</p>
-                        {/* 3. DATE CREATION FOR GRID RESULTS */}
                         <p className="text-slate-400 text-[10px] font-bold">
                           {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </p>
@@ -316,7 +350,7 @@ function VerificationContent() {
       {/* SCANNER MODAL */}
       <AnimatePresence>
         {showScanner && (
-          <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 backdrop-blur-md z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-md rounded-lg p-6 shadow-2xl relative border border-slate-100">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
@@ -330,13 +364,7 @@ function VerificationContent() {
                 </button>
               </div>
 
-              <div 
-                id="reader" 
-                className="w-full aspect-square rounded-md overflow-hidden border-2 border-blue-600 bg-slate-950 shadow-inner relative z-10 
-                           [&_video]:object-cover [&_video]:w-full [&_video]:h-full
-                           [&_button]:bg-blue-600 [&_button]:text-white [&_button]:px-4 [&_button]:py-2 [&_button]:rounded-md [&_button]:text-[11px] [&_button]:font-bold [&_button]:uppercase [&_button]:mt-4 [&_button]:cursor-pointer
-                           [&_select]:bg-slate-50 [&_select]:border [&_select]:border-slate-200 [&_select]:rounded-md [&_select]:p-2 [&_select]:text-[11px]"
-              >
+              <div id="reader" className="w-full aspect-square rounded-md overflow-hidden border-2 border-blue-600 bg-slate-950 shadow-inner relative z-10 [&_video]:object-cover [&_video]:w-full [&_video]:h-full [&_button]:bg-blue-600 [&_button]:text-white [&_button]:px-4 [&_button]:py-2 [&_button]:rounded-md [&_button]:text-[11px] [&_button]:font-bold [&_button]:uppercase [&_button]:mt-4 [&_button]:cursor-pointer [&_select]:bg-slate-50 [&_select]:border [&_select]:border-slate-200 [&_select]:rounded-md [&_select]:p-2 [&_select]:text-[11px]">
               </div>
 
               <div className="mt-6 text-center">
@@ -364,10 +392,10 @@ function VerificationContent() {
       </AnimatePresence>
 
       <footer className="py-12 px-6 mt-10 border-t border-slate-100">
-         <p className="text-[12px] text-center font-bold text-slate-300">
+          <p className="text-[12px] text-center font-bold text-slate-300">
             Digital Image Sharing made better!<br/>
             Capture and Share: Image Sharing System © 2026
-         </p>
+          </p>
       </footer>
     </div>
   );
