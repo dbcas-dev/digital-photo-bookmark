@@ -33,8 +33,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   // Default SEO pag walang sine-search
   return {
-    title: 'Photobooth Verification System',
-    description: 'Verify and download your digital bookmarks.',
+    title: 'Capture and Share - Digital Image Sharing',
+    description: 'Digital Image Sharing made better!',
   };
 }
 
