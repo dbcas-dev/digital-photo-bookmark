@@ -285,14 +285,14 @@ export default function Dashboard() {
         <div className="flex border-b border-slate-200 mb-8 gap-8">
           <button 
             onClick={() => setActiveTab('individual')}
-            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'individual' ? 'text-blue-600' : 'text-slate-400'}`}
+            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer uppercase tracking-wide ${activeTab === 'individual' ? 'text-blue-600' : 'text-slate-400'}`}
           >
             Souvenir Photos
             {activeTab === 'individual' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
           </button>
           <button 
             onClick={() => setActiveTab('batch')}
-            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'batch' ? 'text-blue-600' : 'text-slate-400'}`}
+            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer uppercase tracking-wide ${activeTab === 'batch' ? 'text-blue-600' : 'text-slate-400'}`}
           >
             Documentation Albums
             {activeTab === 'batch' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
@@ -363,7 +363,7 @@ export default function Dashboard() {
           /* BATCH ALBUMS VIEW */
           batchRecords.length === 0 ? (
             <div className="bg-white rounded-lg border-2 border-dashed border-blue-100 p-12 md:p-24 text-center">
-              <p className="text-slate-400 text-md md:text-lg font-bold">No Batch Albums created yet.</p>
+              <p className="text-slate-400 text-md md:text-lg font-bold">No Documentation Albums created yet.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -390,7 +390,7 @@ export default function Dashboard() {
                     <h4 className="font-bold text-slate-900 text-sm md:text-md mb-1 uppercase tracking-tight truncate">{batch.title}</h4>
                     <p className="text-blue-600 text-[11px] font-bold mb-4">{batch.album_code}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Batch Album</span>
+                      <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Album</span>
                       <span className="text-slate-300 text-[10px]">{new Date(batch.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
