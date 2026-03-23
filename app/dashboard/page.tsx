@@ -267,7 +267,7 @@ export default function Dashboard() {
             }}
             className="flex-1 sm:flex-none bg-blue-600 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition-all text-[12px] md:text-sm cursor-pointer whitespace-nowrap"
           >
-            <Plus className="w-4 h-4" /> Add {activeTab === 'individual' ? 'Photo' : 'Batch Album'}
+            <Plus className="w-4 h-4" /> Add {activeTab === 'individual' ? 'Photo' : 'Album'}
           </button>
           
           <button 
@@ -400,7 +400,7 @@ export default function Dashboard() {
           )
         )}
 
-        {/* --- DUAL-MODE MODAL (Preview & Edit) --- */}
+{/* --- DUAL-MODE MODAL (Preview & Edit) --- */}
 {showModal && (
   <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-50 p-0 md:p-4">
     <motion.div 
@@ -420,14 +420,14 @@ export default function Dashboard() {
         <div className="flex-1 flex flex-col bg-white overflow-hidden">
           <div className="p-6 md:p-8 border-b border-slate-100 bg-white">
             <h2 className="text-[13px] md:text-[15px] font-bold text-slate-900 uppercase tracking-widest">
-              New {activeTab === 'individual' ? 'Entry Record' : 'Batch Album'}
+              New {activeTab === 'individual' ? 'Entry Record' : 'Documentation Album'}
             </h2>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 md:space-y-8">
             <div className="relative">
               <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">
-                {activeTab === 'individual' ? 'Album Name' : 'Batch Album Title'}
+                {activeTab === 'individual' ? 'Event' : 'Album Name'}
               </label>
               <input 
                 type="text" 
@@ -455,7 +455,9 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
-                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Link</label>
+                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">
+                  {activeTab === 'individual' ? 'Photo Link Source' : 'Album Link Source'}
+                </label>
                 <input 
                   type="text" 
                   className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" 
@@ -463,7 +465,6 @@ export default function Dashboard() {
                   onChange={(e) => {
                     const val = e.target.value;
                     setShareLink(val);
-                    // Smart detection: If link is a google user content image, auto-set thumbnail
                     if (val.includes("googleusercontent.com")) {
                       setThumbUrl(val);
                     }
@@ -478,7 +479,7 @@ export default function Dashboard() {
 
             {activeTab === 'batch' && (
               <div>
-                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Custom Search Code</label>
+                <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Custom Album Code</label>
                 <input 
                   type="text" 
                   placeholder="e.g. EVENT-2024"
@@ -539,12 +540,24 @@ export default function Dashboard() {
               <AnimatePresence mode="wait">
                 {isEditMode ? (
                   <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5 md:space-y-6">
+                    {activeTab === 'batch' && (
+                      <div>
+                        <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Album Code</label>
+                        <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-blue-600 font-bold outline-none focus:border-blue-600 transition-all uppercase" value={batchAlbumCode} onChange={(e) => setBatchAlbumCode(e.target.value)} />
+                      </div>
+                      
+                    )}                    
                     <div>
-                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Title / Name</label>
+                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">
+                        {activeTab === 'individual' ? 'Event' : 'Album Name'}
+                      </label>
                       <input type="text" autoComplete="off" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={albumName} onChange={(e) => setAlbumName(e.target.value)} />
                     </div>
+
                     <div>
-                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Album Link</label>
+                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">
+                        {activeTab === 'individual' ? 'Photo Link Source' : 'Album Link Source'}
+                      </label>
                       <input 
                         type="text" 
                         className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" 
@@ -558,26 +571,30 @@ export default function Dashboard() {
                         }} 
                       />
                     </div>
+
                     <div>
                       <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Thumbnail URL</label>
                       <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-900 font-bold outline-none focus:border-blue-600 transition-all" value={thumbUrl} onChange={(e) => setThumbUrl(e.target.value)} />
                     </div>
-                    {activeTab === 'batch' && (
-                      <div>
-                        <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Search Code</label>
-                        <input type="text" className="w-full bg-slate-50 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-blue-600 font-bold outline-none focus:border-blue-600 transition-all uppercase" value={batchAlbumCode} onChange={(e) => setBatchAlbumCode(e.target.value)} />
+                    {/* READ-ONLY DATE FIELD IN EDIT MODE */}
+                    <div>
+                      <label className="block text-slate-400 font-bold mb-2 text-[11px] md:text-[12px] uppercase tracking-widest">Date Added</label>
+                      <div className="w-full bg-slate-100 border border-slate-200 p-3 md:p-4 rounded-md text-[13px] text-slate-500 font-bold cursor-not-allowed flex items-center gap-2">
+                        {new Date(activeTab === 'individual' 
+                          ? records.find(r => r.id === editId)?.created_at 
+                          : batchRecords.find(b => b.id === editId)?.created_at
+                        ).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </div>
-                    )}
+                    </div>
+
                   </motion.div>
                 ) : (
                   <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6 md:space-y-8">
                     <div className="space-y-5 md:space-y-6">
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Title</p>
-                        <p className="text-[13px] font-bold text-slate-900 bg-slate-50 p-3.5 md:p-4 rounded-md border border-slate-100">{albumName || "N/A"}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Search Code</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                          {activeTab === 'individual' ? 'Photo Code' : 'Album Code'}
+                        </p>
                         <div onClick={() => { 
                           const code = activeTab === 'individual' 
                             ? records.find(r => r.id === editId)?.photo_code 
@@ -588,9 +605,57 @@ export default function Dashboard() {
                           <Copy size={16} className="text-blue-300 group-hover:text-blue-600" />
                         </div>
                       </div>
+
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Source</p>
-                        <a href={shareLink} target="_blank" className="text-[13px] text-blue-600 font-bold underline flex items-center gap-2 hover:text-blue-800 transition-all cursor-pointer uppercase">External Album Link <ExternalLink size={14} /></a>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                          {activeTab === 'individual' ? 'Event' : 'Album Name'}
+                        </p>
+                        <p className="text-[13px] font-bold text-slate-900 bg-slate-50 p-3.5 md:p-4 rounded-md border border-slate-100">{albumName || "N/A"}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                          {activeTab === 'individual' ? 'Photo Link Source' : 'Album Link Source'}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          {/* CLICK TO COPY AREA */}
+                          <div 
+                            onClick={() => {
+                              if (shareLink) {
+                                navigator.clipboard.writeText(shareLink);
+                                notify("Link Copied!", "success");
+                              }
+                            }}
+                            className="flex-1 bg-slate-50 border border-slate-100 p-3.5 md:p-4 rounded-md flex items-center justify-between cursor-pointer group hover:bg-blue-50 hover:border-blue-200 transition-all"
+                          >
+                            <p className="text-[13px] font-bold text-slate-600 truncate max-w-[200px] md:max-w-[300px]">
+                              {shareLink || "No link provided"}
+                            </p>
+                            <Copy size={16} className="text-slate-300 group-hover:text-blue-600 flex-shrink-0" />
+                          </div>
+
+                          {/* DIRECT OPEN BUTTON */}
+                          <a 
+                            href={shareLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-3.5 md:p-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                            title="Open Link"
+                          >
+                            <ExternalLink size={18} />
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* DATE RECORDED INFO BOX */}
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Date Added</p>
+                        <p className="text-[12px] font-bold text-slate-600 italic">
+                          {new Date(activeTab === 'individual' 
+                            ? records.find(r => r.id === editId)?.created_at 
+                            : batchRecords.find(b => b.id === editId)?.created_at
+                          ).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </p>
                       </div>
                     </div>
                   </motion.div>
@@ -630,57 +695,96 @@ export default function Dashboard() {
 )}
 
 {/* --- UNIVERSAL QR MODAL --- */}
-        <AnimatePresence>
-          {showQRModal && (
-            <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4 z-[100]">
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl max-w-sm w-full p-8 md:p-10 text-center shadow-2xl relative">
-                <button onClick={() => setShowQRModal(null)} className="absolute top-4 right-4 md:top-6 md:right-6 text-slate-400 hover:text-slate-900 cursor-pointer"><X size={24} /></button>
-                
-                <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-1 tracking-tight uppercase">
-                   {showQRModal.title || showQRModal.album_name}
-                </h3>
-                <p className="text-blue-600 font-bold mb-6 md:mb-8 text-md md:text-lg">
-                  {showQRModal.photo_code || showQRModal.album_code}
-                </p>
+<AnimatePresence>
+  {showQRModal && (
+    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4 z-[100]">
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        className="bg-white rounded-3xl max-w-sm w-full p-8 md:p-10 text-center shadow-2xl relative"
+      >
+        {/* Close Button */}
+        <button 
+          onClick={() => setShowQRModal(null)} 
+          className="absolute top-4 right-4 md:top-6 md:right-6 text-slate-400 hover:text-slate-900 cursor-pointer"
+        >
+          <X size={24} />
+        </button>
 
-                <div className="bg-white p-4 md:p-6 border border-slate-100 rounded-2xl inline-block mb-4 shadow-inner">
-                  <QRCodeSVG 
-                    id="qr-gen" 
-                    value={`${window.location.origin}/?c=${showQRModal.photo_code || showQRModal.album_code}`} 
-                    size={220} 
-                    level={"H"} 
-                    includeMargin={true} 
-                  />
-                </div>
+        {/* 1. QR CODE (GENERATED) */}
+        <div className="bg-white p-4 md:p-6 border border-slate-100 rounded-2xl inline-block mb-6 shadow-inner">
+          <QRCodeSVG 
+            id="qr-gen" 
+            value={`${window.location.origin}/?c=${showQRModal.photo_code || showQRModal.album_code}`} 
+            size={220} 
+            level={"H"} 
+            includeMargin={true} 
+          />
+        </div>
 
-                {/* CLICK TO COPY LINK SECTION */}
-                <div 
-                  onClick={() => {
-                    const link = `${window.location.origin}/?c=${showQRModal.photo_code || showQRModal.album_code}`;
-                    navigator.clipboard.writeText(link);
-                    notify("Link Copied!", "success");
-                  }}
-                  className="mb-8 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all group"
-                >
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 group-hover:text-blue-400">Direct Link</p>
-                  <div className="flex items-center justify-center gap-2 text-slate-600 group-hover:text-blue-600">
-                    <span className="text-[11px] font-medium truncate max-w-[200px]">
-                      {window.location.host}/?c={showQRModal.photo_code || showQRModal.album_code}
-                    </span>
-                    <Copy size={14} className="flex-shrink-0" />
-                  </div>
-                </div>
+        <div className="space-y-3 mb-8">
+          {/* 2. ALBUM NAME / EVENT IN BOX */}
+          <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">
+              {activeTab === 'individual' ? 'Event' : 'Album Name'}
+            </p>
+            <p className="text-[13px] font-bold text-slate-900 uppercase truncate px-2">
+              {showQRModal.title || showQRModal.album_name}
+            </p>
+          </div>
 
-                <button 
-                  onClick={() => downloadQR(showQRModal.photo_code || showQRModal.album_code)} 
-                  className="w-full bg-blue-600 text-white py-5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-blue-700 shadow-lg active:scale-95 transition-all cursor-pointer text-sm"
-                >
-                  <Download className="w-5 h-5 md:w-6 md:h-6" /> Save QR Code
-                </button>
-              </motion.div>
+          {/* 3. CLICK TO COPY PHOTO/ALBUM CODE BOX */}
+          <div 
+            onClick={() => {
+              const code = showQRModal.photo_code || showQRModal.album_code;
+              navigator.clipboard.writeText(code);
+              notify("Code Copied!", "success");
+            }}
+            className="p-3 bg-blue-50 border border-blue-100 rounded-xl cursor-pointer hover:bg-blue-100 transition-all group"
+          >
+            <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-1 group-hover:text-blue-500">
+              {activeTab === 'individual' ? 'Photo Code' : 'Album Code'}
+            </p>
+            <div className="flex items-center justify-center gap-2 text-blue-700">
+              <span className="text-[15px] font-black tracking-widest">
+                {showQRModal.photo_code || showQRModal.album_code}
+              </span>
+              <Copy size={14} className="flex-shrink-0 opacity-50 group-hover:opacity-100" />
             </div>
-          )}
-        </AnimatePresence>
+          </div>
+
+          {/* 4. CLICK TO COPY DIRECT LINK BOX */}
+          <div 
+            onClick={() => {
+              const link = `${window.location.origin}/?c=${showQRModal.photo_code || showQRModal.album_code}`;
+              navigator.clipboard.writeText(link);
+              notify("Link Copied!", "success");
+            }}
+            className="p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all group"
+          >
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 group-hover:text-blue-400">Direct Link</p>
+            <div className="flex items-center justify-center gap-2 text-slate-600 group-hover:text-blue-600">
+              <span className="text-[11px] font-medium truncate max-w-[200px]">
+                {window.location.host}/?c={showQRModal.photo_code || showQRModal.album_code}
+              </span>
+              <Copy size={14} className="flex-shrink-0 opacity-50 group-hover:opacity-100" />
+            </div>
+          </div>
+        </div>
+
+        {/* 5. SAVE QR CODE BUTTON */}
+        <button 
+          onClick={() => downloadQR(showQRModal.photo_code || showQRModal.album_code)} 
+          className="w-full bg-blue-600 text-white py-5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-blue-700 shadow-lg active:scale-95 transition-all cursor-pointer text-sm uppercase tracking-widest"
+        >
+          <Download className="w-5 h-5" /> Save QR Code
+        </button>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+
+
        {/* --- Success Modal --- */}
         <AnimatePresence>
           {showSuccess && (
