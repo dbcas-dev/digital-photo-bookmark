@@ -33,7 +33,7 @@ function VerificationContent() {
       document.title = "Searching...";
     } else if (selectedRecord) {
       const title = selectedRecord.photo_code || selectedRecord.album_code;
-      document.title = `Verified: ${title} | DBCAS`;
+      document.title = `${title} | Capture and Share - Digital Image Sharing`;
     } else if (results.length > 0) {
       document.title = `${results.length} Results for "${searchQuery}"`;
     } else {
@@ -296,83 +296,125 @@ function VerificationContent() {
               <div className="w-20"></div>
             </div>
 
-            {selectedRecord && (
-              <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
-                <div className="p-4 md:p-10">
-                  {/* LARGER PREVIEW AREA */}
-                  <div className="w-full rounded-xl overflow-hidden mb-8 relative bg-slate-50 group shadow-inner">
-                    <div 
-                      onClick={() => setFullscreenImage(selectedRecord.thumb_url)}
-                      className="w-full cursor-zoom-in"
-                    >
-                      <img 
-                        src={selectedRecord.thumb_url} 
-                        alt="Verified" 
-                        className="w-full h-auto min-h-[300px] max-h-[70vh] object-contain transition-transform duration-700 group-hover:scale-[1.02]" 
-                        referrerPolicy="no-referrer" 
-                      />
-                    </div>
-                    
-                    {/* FULLSCREEN BUTTON OVERLAY */}
-                    <button 
-                      onClick={() => setFullscreenImage(selectedRecord.thumb_url)}
-                      className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-slate-900"
-                    >
-                      <Maximize2 size={20} />
-                    </button>
+{selectedRecord && (
+              <div className={`mx-auto transition-all duration-500 ${selectedRecord.isBatch ? "max-w-sm px-2 md:px-0" : "max-w-5xl px-4"}`}>
+                <div className={`bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-100 ${selectedRecord.isBatch ? "p-4 md:p-6" : "p-4 md:p-10"}`}>
+                  
+                  {/* PREVIEW AREA */}
+                  <div className={`
+                    rounded-xl overflow-hidden relative bg-slate-50 group shadow-inner transition-all
+                    ${selectedRecord.isBatch 
+                      ? 'aspect-square mb-6' // Linkfire Square Cover
+                      : 'w-full mb-8'        // Original Photo Layout
+                    }
+                  `}>
+                    {selectedRecord.isBatch ? (
+                      /* ALBUM: Click goes to external link directly */
+                      <a 
+                        href={selectedRecord.share_link} 
+                        target="_blank" 
+                        className="w-full h-full block relative cursor-pointer"
+                      >
+                        <img 
+                          src={selectedRecord.thumb_url} 
+                          alt="Album Cover" 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                          referrerPolicy="no-referrer" 
+                        />
+                        {/* BLACK TRANSPARENT HOVER */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <ExternalLink className="text-white w-10 h-10" />
+                        </div>
+                      </a>
+                    ) : (
+                      /* PHOTO: Hover effect added with black transparent overlay */
+                      <div 
+                        onClick={() => setFullscreenImage(selectedRecord.thumb_url)}
+                        className="w-full cursor-zoom-in relative group"
+                      >
+                        <img 
+                          src={selectedRecord.thumb_url} 
+                          alt="Verified" 
+                          className="w-full h-auto min-h-[300px] max-h-[70vh] object-contain transition-transform duration-700 group-hover:scale-[1.01]" 
+                          referrerPolicy="no-referrer" 
+                        />
+                        {/* BLACK TRANSPARENT HOVER FOR PHOTO */}
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Maximize2 className="text-white w-12 h-12" />
+                        </div>
+                        
+                        <button className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-slate-900 cursor-pointer">
+                          <Maximize2 size={20} />
+                        </button>
+                      </div>
+                    )}
 
-                    <div className={`absolute top-4 left-4 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg text-white ${selectedRecord.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
+                    {/* BADGE LABELS: Aligned to match margins */}
+                    <div className={`absolute top-4 left-4 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-md text-white z-10 ${selectedRecord.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
                       {selectedRecord.isBatch ? "Full Album" : "Souvenir Photo"}
                     </div>
                   </div>
 
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                    <div className="space-y-2">
-                      <h2 className="text-[20px] md:text-[24px] font-black text-slate-900 uppercase tracking-tight leading-tight">
+                  {/* INFO & ACTIONS AREA */}
+                  <div className={`flex flex-col ${selectedRecord.isBatch ? 'items-center text-center' : 'md:flex-row md:items-center justify-between gap-8'}`}>
+                    
+                    {/* TEXT CONTENT */}
+                    <div className={`space-y-2 ${selectedRecord.isBatch ? 'mb-8' : ''}`}>
+                      <h2 className={`cursor-pointer ${selectedRecord.isBatch ? 'text-[18px]' : 'text-[20px] md:text-[24px]'} font-black text-slate-900 uppercase tracking-tight leading-tight`}>
                         {selectedRecord.album_name || selectedRecord.title}
                       </h2>
                       <div className="flex flex-col gap-1">
-                        <p className={`text-[15px] font-black uppercase tracking-wider ${selectedRecord.isBatch ? 'text-green-600' : 'text-blue-600'}`}>
+                        <p className={`font-black uppercase tracking-wider cursor-pointer ${selectedRecord.isBatch ? 'text-green-600 text-[13px]' : 'text-blue-600 text-[15px]'}`}>
                           {selectedRecord.photo_code || selectedRecord.album_code}
                         </p>
-                        <p className="text-slate-400 text-[12px] font-bold uppercase tracking-widest">
-                          {selectedRecord.isBatch ? "Complete Collection Access" : `Captured: ${new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
+                        <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest cursor-default">
+                          {selectedRecord.isBatch ? "Digital Collection" : `Captured: ${new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto">
+                    {/* BUTTONS: Stacked for Album, Row for Photo */}
+                    <div className={`flex flex-col gap-3 w-full ${selectedRecord.isBatch ? '' : 'md:flex-row md:w-auto'}`}>
                       {selectedRecord.isBatch ? (
-                        <a 
-                          href={selectedRecord.share_link} 
-                          target="_blank" 
-                          className="w-full md:w-auto bg-green-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-green-700 transition-all active:scale-95 uppercase tracking-widest shadow-xl cursor-pointer"
-                        >
-                          <ExternalLink size={18} /> Open Full Album
-                        </a>
+                        <>
+                          <a 
+                            href={selectedRecord.share_link} 
+                            target="_blank" 
+                            className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 hover:bg-green-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer"
+                          >
+                            <ExternalLink size={16} /> Open Album
+                          </a>
+                          <button 
+                            onClick={shareToFacebook} 
+                            className="w-full bg-[#1877F2] text-white py-4 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer"
+                          >
+                            <Facebook size={16} /> Share to Feed
+                          </button>
+                          <button 
+                            onClick={copyToClipboard} 
+                            className={`w-full py-4 rounded-xl border-2 font-black text-[12px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"}`}
+                          >
+                            {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied" : "Copy Link"}
+                          </button>
+                        </>
                       ) : (
-                        <button 
-                          onClick={() => handleDownload(selectedRecord.share_link, selectedRecord.photo_code)} 
-                          disabled={downloading} 
-                          className="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest shadow-xl cursor-pointer"
-                        >
-                          {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />} Download Photo
-                        </button>
+                        <>
+                          <button 
+                            onClick={() => handleDownload(selectedRecord.share_link, selectedRecord.photo_code)} 
+                            disabled={downloading} 
+                            className="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer"
+                          >
+                            {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />} Download Photo
+                          </button>
+                          <button onClick={shareToFacebook} className="w-full md:w-auto bg-[#1877F2] text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer">
+                            <Facebook size={18} /> Share
+                          </button>
+                          <button onClick={copyToClipboard} className={`w-full md:w-auto p-4 px-8 rounded-xl border-2 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 shadow-sm"}`}>
+                            {copied ? <Check size={20} /> : <Copy size={20} />}
+                            <span className="md:hidden font-black text-[13px] uppercase tracking-widest">Copy Link</span>
+                          </button>
+                        </>
                       )}
-                      
-                      <button 
-                        onClick={shareToFacebook} 
-                        className="w-full md:w-auto bg-[#1877F2] text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 uppercase tracking-widest shadow-xl cursor-pointer"
-                      >
-                        <Facebook size={18} /> Share
-                      </button>
-                      <button 
-                        onClick={copyToClipboard} 
-                        className={`w-full md:w-auto p-4 px-8 rounded-xl border-2 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 shadow-sm"}`}
-                      >
-                        {copied ? <Check size={20} /> : <Copy size={20} />}
-                        <span className="md:hidden font-black text-[13px] uppercase tracking-widest">Copy Link</span>
-                      </button>
                     </div>
                   </div>
                 </div>
