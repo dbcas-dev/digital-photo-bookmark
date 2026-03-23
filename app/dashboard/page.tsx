@@ -285,16 +285,16 @@ export default function Dashboard() {
         <div className="flex border-b border-slate-200 mb-8 gap-8">
           <button 
             onClick={() => setActiveTab('individual')}
-            className={`pb-4 text-sm font-bold transition-all relative ${activeTab === 'individual' ? 'text-blue-600' : 'text-slate-400'}`}
+            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'individual' ? 'text-blue-600' : 'text-slate-400'}`}
           >
-            Individual Album Photos
+            Souvenir Photos
             {activeTab === 'individual' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
           </button>
           <button 
             onClick={() => setActiveTab('batch')}
-            className={`pb-4 text-sm font-bold transition-all relative ${activeTab === 'batch' ? 'text-blue-600' : 'text-slate-400'}`}
+            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'batch' ? 'text-blue-600' : 'text-slate-400'}`}
           >
-            Batch Albums
+            Documentation Albums
             {activeTab === 'batch' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
           </button>
         </div>
@@ -818,8 +818,72 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* --- Sign Out & Delete & Discard Confirmation Modals (Keeping as they were) --- */}
-        {/* ... (Omitted for brevity, identical to your previous code) ... */}
+{/* --- Sign Out Confirmation --- */}
+        <AnimatePresence>
+          {showSignOutConfirm && (
+            <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center p-4 z-[100] backdrop-blur-sm">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl">
+                <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <LogOut className="text-red-600 w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Sign Out?</h3>
+                <p className="text-slate-500 text-sm mb-8">Are you sure you want to log out of the admin dashboard?</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowSignOutConfirm(false)} className="flex-1 p-4 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all text-xs uppercase tracking-widest cursor-pointer">Stay Logged in</button>
+                  <button onClick={() => signOut(auth)} className="flex-1 p-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all text-xs uppercase tracking-widest shadow-lg shadow-red-100 cursor-pointer">Sign Out</button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* --- Delete Confirmation --- */}
+        <AnimatePresence>
+          {showDeleteConfirm && (
+            <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center p-4 z-[100] backdrop-blur-md">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl border-t-8 border-red-600">
+                <Trash2 className="w-12 h-12 text-red-600 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Delete Record?</h3>
+                <p className="text-slate-500 text-sm mb-8">
+                  This action is permanent. You are deleting this 
+                  <span className="font-bold text-slate-700"> {activeTab === 'individual' ? 'Photo' : 'Batch Album'}</span>.
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowDeleteConfirm(null)} className="flex-1 p-4 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all text-xs uppercase cursor-pointer">Cancel</button>
+                  <button onClick={executeDelete} className="flex-1 p-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-all text-xs uppercase shadow-lg cursor-pointer">Confirm Delete</button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* --- Discard Changes Confirmation --- */}
+        <AnimatePresence>
+          {showDiscardConfirm && (
+            <div className="fixed inset-0 bg-slate-900/80 flex items-center justify-center p-4 z-[100] backdrop-blur-sm">
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-2xl max-w-sm w-full p-8 text-center shadow-2xl">
+                <div className="bg-amber-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="text-amber-500 w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Discard Edits?</h3>
+                <p className="text-slate-500 text-sm mb-8">You have unsaved changes. If you leave now, your edits will be lost.</p>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowDiscardConfirm(false)} className="flex-1 p-4 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-all text-[11px] uppercase tracking-widest cursor-pointer">Keep Editing</button>
+                  <button 
+                    onClick={() => {
+                      setIsEditMode(false);
+                      setShowDiscardConfirm(false);
+                      // This reverts the view from Edit Inputs back to Information Labels
+                    }} 
+                    className="flex-1 p-4 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all text-[11px] uppercase tracking-widest shadow-lg cursor-pointer"
+                  >
+                    Discard
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
       </main>
     </div>
