@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import MainUI from "./components/MainUI";
 import { searchPhotoRecords } from "@/app/actions/photoActions";
-import { getBatchAlbums } from "@/app/actions/batchActions"; // Import this
+import { getBatchAlbums } from "@/app/actions/batchActions";
 
 type Props = {
   params: Promise<{ [key: string]: string }>;
@@ -17,48 +17,51 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 
   if (code) {
     try {
-      // 1. Try searching for a specific Photo Record first
+      // 1. Try Photo Record Search
       const photoResult = await searchPhotoRecords(code);
       
-      if (photoResult.success && photoResult.data.length > 0) {
-        const record = photoResult.data[0];
-        const imageUrl = record.thumb_url;
+      // Cast to any to prevent property-not-found errors during build
+      const photoData = photoResult?.success ? (photoResult.data as any[]) : [];
+
+      if (photoData.length > 0) {
+        const record = photoData[0];
+        const imageUrl = record.thumb_url || '/og-image.jpg';
 
         return {
           metadataBase: new URL(siteUrl),
-          title: `${record.photo_code} | ${record.album_name}`,
-          description: `View photo ${record.photo_code} from ${record.album_name}.`,
+          title: `${record.photo_code} | ${record.album_name || 'Photo'}`,
+          description: `View photo ${record.photo_code} - Digital Image Sharing`,
           openGraph: {
-            title: `${record.photo_code} | ${record.album_name}`,
-            description: `Digital Image Sharing - ${record.album_name}`,
+            title: `${record.photo_code} | ${record.album_name || 'Photo'}`,
+            description: `Digital Image Sharing`,
             url: `/?c=${code}`,
-            images: [{ url: imageUrl, width: 1200, height: 630 }],
+            images: [{ url: String(imageUrl), width: 1200, height: 630 }],
             type: 'website',
           },
           twitter: {
             card: 'summary_large_image',
-            images: [imageUrl],
+            images: [String(imageUrl)],
           },
         };
       }
 
-      // 2. If no photo found, try searching for a Batch/Album
+      // 2. Try Batch/Album Search
       const batchResult = await getBatchAlbums();
       if (batchResult?.success && Array.isArray(batchResult.data)) {
-        const album = batchResult.data.find((b: any) => 
-          b.album_code.toUpperCase() === code.toUpperCase()
+        // Cast b to any to avoid property errors on thumb_url or title
+        const album = (batchResult.data as any[]).find((b: any) => 
+          b.album_code?.toUpperCase() === code.toUpperCase()
         );
 
-if (album) {
-          // Use thumb_url if it exists, otherwise fallback to default OG image
+        if (album) {
           const albumImg = album.thumb_url || '/og-image.jpg';
           
           return {
             metadataBase: new URL(siteUrl),
-            title: `${album.title} | Album`,
-            description: `View the full album: ${album.title}`,
+            title: `${album.title || 'Album'} | Digital Sharing`,
+            description: `View the full album: ${album.title || album.album_code}`,
             openGraph: {
-              title: album.title,
+              title: album.title || album.album_code,
               description: `Digital Album - ${album.album_code}`,
               url: `/?c=${code}`,
               images: [{ url: String(albumImg), width: 1200, height: 630 }],
