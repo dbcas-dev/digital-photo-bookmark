@@ -49,9 +49,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
           b.album_code.toUpperCase() === code.toUpperCase()
         );
 
-        if (album) {
-          // Use the album cover or a placeholder if thumb_url doesn't exist on batch
-          const albumImg = album.thumb_url || album.cover_url || '/og-image.jpg';
+if (album) {
+          // Use thumb_url if it exists, otherwise fallback to default OG image
+          const albumImg = album.thumb_url || '/og-image.jpg';
           
           return {
             metadataBase: new URL(siteUrl),
@@ -61,7 +61,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
               title: album.title,
               description: `Digital Album - ${album.album_code}`,
               url: `/?c=${code}`,
-              images: [{ url: albumImg, width: 1200, height: 630 }],
+              images: [{ url: String(albumImg), width: 1200, height: 630 }],
               type: 'website',
             },
           };
