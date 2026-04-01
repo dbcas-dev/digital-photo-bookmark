@@ -7,7 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Loader2, Plus, LogOut, Image as ImageIcon, 
+  Loader2, Share2, Plus, LogOut, Image as ImageIcon, 
   CheckCircle2, AlertCircle, Trash2, ExternalLink, 
   Pencil, QrCode, Download, X, Check, Info, 
   ChevronRight, Folder, Copy, AlertTriangle, Layers
@@ -672,17 +672,18 @@ export default function Dashboard() {
               ) : (
                 <>
                   <button onClick={() => setIsEditMode(true)} className="w-full p-3.5 md:p-4 bg-blue-600 text-white font-bold rounded-md text-[12px] md:text-[13px] flex items-center justify-center gap-2 shadow-md hover:bg-blue-700 transition-all cursor-pointer uppercase tracking-widest"><Pencil size={15} /> Edit Details</button>
-                  <button 
-                    onClick={() => {
-                      const target = activeTab === 'individual' 
-                        ? records.find(r => r.id === editId) 
-                        : batchRecords.find(b => b.id === editId);
-                      setShowQRModal(target);
-                    }} 
-                    className="w-full p-3.5 md:p-4 bg-slate-900 text-white font-bold rounded-md text-[12px] md:text-[13px] flex items-center justify-center gap-2 hover:bg-slate-800 transition-all cursor-pointer uppercase tracking-widest"
-                  >
-                    <QrCode size={15} /> View QR Code
-                  </button>
+<button 
+  onClick={() => {
+    const target = activeTab === 'individual' 
+      ? records.find(r => r.id === editId) 
+      : batchRecords.find(b => b.id === editId);
+    setShowQRModal(target);
+  }} 
+  className="w-full p-3.5 md:p-4 bg-slate-900 text-white font-bold rounded-md text-[12px] md:text-[13px] flex items-center justify-center gap-2 hover:bg-slate-800 transition-all cursor-pointer uppercase tracking-widest"
+>
+  {/* Changed icon to Share2 and updated label */}
+  <Share2 size={15} /> View Sharing Links
+</button>
                   <button onClick={() => setShowDeleteConfirm(editId!)} className="w-full p-3 text-red-500 font-bold text-[10px] md:text-[11px] uppercase tracking-widest hover:bg-red-50 rounded-md transition-all cursor-pointer">Delete Record</button>
                 </>
               )}
@@ -753,23 +754,39 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* 4. CLICK TO COPY DIRECT LINK BOX */}
-          <div 
-            onClick={() => {
-              const link = `${window.location.origin}/?c=${showQRModal.photo_code || showQRModal.album_code}`;
-              navigator.clipboard.writeText(link);
-              notify("Link Copied!", "success");
-            }}
-            className="p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all group"
-          >
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 group-hover:text-blue-400">Direct Link</p>
-            <div className="flex items-center justify-center gap-2 text-slate-600 group-hover:text-blue-600">
-              <span className="text-[11px] font-medium truncate max-w-[200px]">
-                {window.location.host}/?c={showQRModal.photo_code || showQRModal.album_code}
-              </span>
-              <Copy size={14} className="flex-shrink-0 opacity-50 group-hover:opacity-100" />
-            </div>
-          </div>
+          <div className="flex flex-col gap-2">
+  {/* 4. CLICK TO COPY DIRECT LINK BOX */}
+  <div className="flex items-stretch gap-2">
+    <div 
+      onClick={() => {
+        const link = `${window.location.origin}/?c=${showQRModal.photo_code || showQRModal.album_code}`;
+        navigator.clipboard.writeText(link);
+        notify("Link Copied!", "success");
+      }}
+      className="flex-1 p-3 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all group"
+    >
+      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 group-hover:text-blue-400">Direct Link</p>
+      <div className="flex items-center justify-center gap-2 text-slate-600 group-hover:text-blue-600">
+        <span className="text-[11px] font-medium truncate max-w-[150px]">
+          {window.location.host}/?c={showQRModal.photo_code || showQRModal.album_code}
+        </span>
+        <Copy size={14} className="flex-shrink-0 opacity-50 group-hover:opacity-100" />
+      </div>
+    </div>
+
+    {/* OPEN LINK BUTTON */}
+    <button
+      onClick={() => {
+        const link = `${window.location.origin}/?c=${showQRModal.photo_code || showQRModal.album_code}`;
+        window.open(link, '_blank', 'noopener,noreferrer');
+      }}
+      className="px-4 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center group cursor-pointer"
+      title="Open in new tab"
+    >
+      <ExternalLink size={18} className="group-hover:scale-110 transition-transform" />
+    </button>
+  </div>
+</div>
         </div>
 
         {/* 5. SAVE QR CODE BUTTON */}
@@ -777,10 +794,12 @@ export default function Dashboard() {
           onClick={() => downloadQR(showQRModal.photo_code || showQRModal.album_code)} 
           className="w-full bg-blue-600 text-white py-5 md:py-4 rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-blue-700 shadow-lg active:scale-95 transition-all cursor-pointer text-sm uppercase tracking-widest"
         >
-          <Download className="w-5 h-5" /> Save QR Code
+          <Download className="w-5 h-5" /> Download QR Code
         </button>
+        
       </motion.div>
     </div>
+    
   )}
 </AnimatePresence>
 
