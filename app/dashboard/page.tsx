@@ -634,16 +634,7 @@ export default function Dashboard() {
                             <Copy size={16} className="text-slate-300 group-hover:text-blue-600 flex-shrink-0" />
                           </div>
 
-                          {/* DIRECT OPEN BUTTON */}
-                          <a 
-                            href={shareLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="p-3.5 md:p-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all shadow-md active:scale-95"
-                            title="Open Link"
-                          >
-                            <ExternalLink size={18} />
-                          </a>
+                          
                         </div>
                       </div>
 
