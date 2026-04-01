@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, QrCode, Download, 
-  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink, Maximize2, Share2
+  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, ArrowRight, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink, Maximize2, Share2
 } from "lucide-react"; 
 import { searchPhotoRecords, getDownloadBlob } from "@/app/actions/photoActions";
 import { getBatchAlbums } from "@/app/actions/batchActions";
@@ -231,13 +231,18 @@ function VerificationContent() {
     setDownloading(false);
   };
 
-  const handleShare = async () => {
+const handleShare = async () => {
     const link = getShareLink();
     const title = selectedRecord?.album_name || selectedRecord?.title || "Digital Image Sharing";
-    const code = selectedRecord?.photo_code || selectedRecord?.album_code;
+    
+    // Determine the caption based on the record type
+    const shareText = selectedRecord?.isBatch 
+      ? `Check out ${title} on:` 
+      : `Check out this souvenir photo from ${title}!`;
+
     const shareData = {
       title: title,
-      text: `Check out this ${selectedRecord?.isBatch ? 'album' : 'photo'} (${code}) on Capture and Share!`,
+      text: shareText,
       url: link,
     };
 
@@ -278,7 +283,7 @@ function VerificationContent() {
               </div>
               <div className="flex flex-col items-center gap-1.5">
                 <h3 className="text-[14px] font-black text-slate-900 uppercase tracking-[0.25em] animate-pulse">
-                  {loadingType === 'search' ? 'Searching...' : 'Preparing...'}
+                  {loadingType === 'search' ? 'Loading...' : 'Preparing...'}
                 </h3>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
                   {loadingType === 'search' ? '' : ''}
@@ -475,7 +480,7 @@ function VerificationContent() {
               </div>
             )}
 
-            {!selectedRecord && results.length > 0 && (
+{!selectedRecord && results.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {results.map((r) => (
                   <div 
@@ -504,7 +509,7 @@ function VerificationContent() {
                         <p className={`font-black text-[13px] uppercase tracking-wider ${r.isBatch ? 'text-green-600' : 'text-blue-600'}`}>
                           {r.photo_code || r.album_code}
                         </p>
-                        <ArrowLeft className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 rotate-180 transition-all" size={16} />
+                        <ArrowRight className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" size={16} />
                       </div>
                     </div>
                   </div>
