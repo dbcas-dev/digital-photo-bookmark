@@ -441,7 +441,7 @@ const handleShare = async () => {
                           {selectedRecord.photo_code || selectedRecord.album_code}
                         </p>
 <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest cursor-default">
-                          {selectedRecord.isBatch ? "Created: " : "Captured: "}
+                          {selectedRecord.isBatch ? "" : "Captured: "}
                           {new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
