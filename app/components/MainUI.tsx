@@ -4,15 +4,17 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Search, QrCode, Download, Facebook, 
-  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink, Maximize2
+  Search, QrCode, Download, 
+  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink, Maximize2, Share2
 } from "lucide-react"; 
 import { searchPhotoRecords, getDownloadBlob } from "@/app/actions/photoActions";
 import { getBatchAlbums } from "@/app/actions/batchActions";
+import { Html5QrcodeScanner } from "html5-qrcode";
 
 function VerificationContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingType, setLoadingType] = useState<'search' | 'results'>('search');
   const [downloading, setDownloading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
@@ -27,10 +29,50 @@ function VerificationContent() {
   const codeFromURL = searchParams.get("c");
   const keywordFromURL = searchParams.get("s");
 
-  // --- 1. DYNAMIC TITLE LOGIC ---
+  // --- 1. QR SCANNER INITIALIZATION ---
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+
+    if (showScanner) {
+      const timer = setTimeout(() => {
+        scanner = new Html5QrcodeScanner(
+          "reader",
+          { 
+            fps: 10, 
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0 
+          },
+          false
+        );
+
+        scanner.render(
+          (decodedText) => {
+            let code = decodedText;
+            if (code.includes("?c=")) {
+              const url = new URL(code);
+              code = url.searchParams.get("c") || code;
+            }
+            setSearchQuery(code.toUpperCase());
+            handleSearch(code);
+            setShowScanner(false);
+          },
+          () => {}
+        );
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (scanner) {
+          scanner.clear().catch((error) => console.error("Failed to clear scanner:", error));
+        }
+      };
+    }
+  }, [showScanner]);
+
+  // --- 2. DYNAMIC TITLE LOGIC ---
   useEffect(() => {
     if (loading) {
-      document.title = "Searching...";
+      document.title = loadingType === 'search' ? "Searching..." : "Preparing...";
     } else if (selectedRecord) {
       const title = selectedRecord.photo_code || selectedRecord.album_code;
       document.title = `${title} | Capture and Share - Digital Image Sharing`;
@@ -39,9 +81,9 @@ function VerificationContent() {
     } else {
       document.title = "Capture and Share - Digital Image Sharing";
     }
-  }, [selectedRecord, results, searchQuery, loading]);
+  }, [selectedRecord, results, searchQuery, loading, loadingType]);
 
-  // --- 2. BROWSER BACK BUTTON LOGIC ---
+  // --- 3. BROWSER BACK BUTTON LOGIC ---
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
@@ -64,12 +106,21 @@ function VerificationContent() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  // --- 4. DIRECT LINK AUTO-LOADER (FIXED) ---
   useEffect(() => {
-    if (codeFromURL) {
-      handleSearch(codeFromURL);
-    } else if (keywordFromURL) {
-      setSearchQuery(keywordFromURL.toUpperCase());
-      handleSearch(keywordFromURL);
+    if (codeFromURL || keywordFromURL) {
+      setLoadingType('search');
+      setLoading(true); // Trigger loading UI immediately
+      
+      const query = codeFromURL || keywordFromURL;
+      if (keywordFromURL) setSearchQuery(keywordFromURL.toUpperCase());
+
+      // Wrap in timeout to ensure the Loading Modal renders before the heavy fetch starts
+      const t = setTimeout(() => {
+        handleSearch(query as string);
+      }, 100);
+      
+      return () => clearTimeout(t);
     }
   }, [codeFromURL, keywordFromURL]);
 
@@ -80,11 +131,10 @@ function VerificationContent() {
 
   const handleSearch = async (query: string = searchQuery) => {
     if (!query) return;
+    
     setLoading(true);
-    setSelectedRecord(null);
 
     let cleanQuery = query.trim().toUpperCase();
-    
     const dashlessPattern = /^([A-Z]{2})(\d{4})(\d{4})$/;
     if (dashlessPattern.test(cleanQuery)) {
       cleanQuery = cleanQuery.replace(dashlessPattern, '$1-$2-$3');
@@ -113,6 +163,7 @@ function VerificationContent() {
       if (allResults.length === 0) {
         setShowErrorModal(true);
         setResults([]);
+        setSelectedRecord(null);
       } else if (allResults.length === 1) {
         const single = allResults[0];
         setSelectedRecord(single);
@@ -120,6 +171,7 @@ function VerificationContent() {
         const finalCode = single.photo_code || single.album_code;
         window.history.pushState({ c: finalCode }, "", `?c=${finalCode}`);
       } else {
+        setSelectedRecord(null);
         setResults(allResults);
         window.history.pushState({ s: cleanQuery }, "", `?s=${encodeURIComponent(cleanQuery)}`);
       }
@@ -179,16 +231,65 @@ function VerificationContent() {
     setDownloading(false);
   };
 
-  const shareToFacebook = () => {
+  const handleShare = async () => {
     const link = getShareLink();
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`, '_blank');
-    notify("Redirecting to Facebook...", "info");
+    const title = selectedRecord?.album_name || selectedRecord?.title || "Digital Image Sharing";
+    const code = selectedRecord?.photo_code || selectedRecord?.album_code;
+    const shareData = {
+      title: title,
+      text: `Check out this ${selectedRecord?.isBatch ? 'album' : 'photo'} (${code}) on Capture and Share!`,
+      url: link,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.log("Share cancelled or failed", err);
+      }
+    } else {
+      copyToClipboard();
+      notify("Share API not supported. Link copied instead!", "info");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f9ff] text-slate-900 font-sans">
+    <div className="relative min-h-screen bg-[#f7f9ff] text-slate-900 font-sans overflow-x-hidden">
       
-      {/* FULLSCREEN IMAGE MODAL */}
+      {/* 1. LOADING MODAL (TOPMOST STACK) */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ zIndex: 9999 }}
+            className="fixed inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-md pointer-events-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-10 rounded-3xl shadow-2xl flex flex-col items-center gap-5 border border-white/20"
+            >
+              <div className="relative flex items-center justify-center">
+                <Loader2 className="w-14 h-14 text-blue-600 animate-spin" />
+                <div className="absolute w-14 h-14 border-4 border-blue-50 rounded-full"></div>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <h3 className="text-[14px] font-black text-slate-900 uppercase tracking-[0.25em] animate-pulse">
+                  {loadingType === 'search' ? 'Searching...' : 'Preparing...'}
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  {loadingType === 'search' ? '' : ''}
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 2. FULLSCREEN IMAGE MODAL */}
       <AnimatePresence>
         {fullscreenImage && (
           <motion.div 
@@ -216,14 +317,14 @@ function VerificationContent() {
         )}
       </AnimatePresence>
 
-      {/* NOTIFICATION CHIP */}
+      {/* 3. NOTIFICATION CHIP */}
       <AnimatePresence>
         {notification && (
           <motion.div 
             initial={{ opacity: 0, y: 50 }} 
             animate={{ opacity: 1, y: 0 }} 
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] w-max"
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[400] w-max"
           >
             <div className={`flex items-center gap-3 px-6 py-3 rounded-full shadow-2xl font-bold text-white text-[12px] uppercase tracking-widest ${notification.type === 'success' ? 'bg-green-600' : 'bg-blue-600'}`}>
               {notification.type === 'success' ? <CheckCircle2 size={16} /> : <Info size={16} />}
@@ -233,6 +334,7 @@ function VerificationContent() {
         )}
       </AnimatePresence>
 
+      {/* 4. MAIN PAGE CONTENT (SEARCH OR RESULTS) */}
       <AnimatePresence mode="wait">
         {!selectedRecord && results.length === 0 ? (
           <motion.div 
@@ -250,7 +352,7 @@ function VerificationContent() {
               <div className="relative">
                 <input 
                   type="text" 
-                  placeholder="ENTER KEYWORD OR CODE"
+                  placeholder="Enter Photo/Album Code"
                   className="w-full bg-white border border-slate-200 p-4 pr-32 rounded-lg text-[15px] font-bold text-slate-900 shadow-sm outline-none focus:border-blue-600 transition-all uppercase"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
@@ -260,7 +362,7 @@ function VerificationContent() {
                   onClick={() => handleSearch()}
                   className="absolute right-1.5 top-1.5 bottom-1.5 bg-blue-600 text-white px-5 rounded-md hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2 shadow-md cursor-pointer"
                 >
-                  {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <Search size={16} />}
+                  <Search size={16} />
                   <span className="font-bold uppercase text-[12px] tracking-widest">Search</span>
                 </button>
               </div>
@@ -275,7 +377,7 @@ function VerificationContent() {
                 onClick={() => setShowScanner(true)}
                 className="w-full bg-white text-blue-600 p-4 rounded-lg font-bold text-[14px] flex items-center justify-center gap-3 border border-slate-200 hover:bg-slate-50 transition-all active:scale-[0.98] uppercase tracking-widest cursor-pointer"
               >
-                <QrCode size={18} /> Scan QR Code
+                <QrCode size={18} /> Scan QR Photo Code
               </button>
             </div>
           </motion.div>
@@ -284,6 +386,7 @@ function VerificationContent() {
             key="results-page"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="max-w-6xl mx-auto p-4 md:p-6"
           >
             <div className="flex justify-between items-center mb-8 mt-4">
@@ -291,74 +394,39 @@ function VerificationContent() {
                 <ArrowLeft size={18} /> Back
               </button>
               <h2 className="text-[14px] font-bold uppercase text-slate-400 tracking-widest">
-                {selectedRecord ? (selectedRecord.isBatch ? "Full Album" : "Souvenir Photo") : `Matches Found (${results.length})`}
+                {selectedRecord ? (selectedRecord.isBatch ? "Album" : "Souvenir Photo") : `Matches Found (${results.length})`}
               </h2>
               <div className="w-20"></div>
             </div>
 
-{selectedRecord && (
+            {selectedRecord && (
               <div className={`mx-auto transition-all duration-500 ${selectedRecord.isBatch ? "max-w-sm px-2 md:px-0" : "max-w-5xl px-4"}`}>
                 <div className={`bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-100 ${selectedRecord.isBatch ? "p-4 md:p-6" : "p-4 md:p-10"}`}>
-                  
-                  {/* PREVIEW AREA */}
-                  <div className={`
-                    rounded-xl overflow-hidden relative bg-slate-50 group shadow-inner transition-all
-                    ${selectedRecord.isBatch 
-                      ? 'aspect-square mb-6' // Linkfire Square Cover
-                      : 'w-full mb-8'        // Original Photo Layout
-                    }
-                  `}>
+                  <div className={`rounded-xl overflow-hidden relative bg-slate-50 group shadow-inner transition-all ${selectedRecord.isBatch ? 'aspect-square mb-6' : 'w-full mb-8'}`}>
                     {selectedRecord.isBatch ? (
-                      /* ALBUM: Click goes to external link directly */
-                      <a 
-                        href={selectedRecord.share_link} 
-                        target="_blank" 
-                        className="w-full h-full block relative cursor-pointer"
-                      >
-                        <img 
-                          src={selectedRecord.thumb_url} 
-                          alt="Album Cover" 
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                          referrerPolicy="no-referrer" 
-                        />
-                        {/* BLACK TRANSPARENT HOVER */}
+                      <a href={selectedRecord.share_link} target="_blank" className="w-full h-full block relative cursor-pointer">
+                        <img src={selectedRecord.thumb_url} alt="Album Cover" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" referrerPolicy="no-referrer" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <ExternalLink className="text-white w-10 h-10" />
                         </div>
                       </a>
                     ) : (
-                      /* PHOTO: Hover effect added with black transparent overlay */
-                      <div 
-                        onClick={() => setFullscreenImage(selectedRecord.thumb_url)}
-                        className="w-full cursor-zoom-in relative group"
-                      >
-                        <img 
-                          src={selectedRecord.thumb_url} 
-                          alt="Verified" 
-                          className="w-full h-auto min-h-[300px] max-h-[70vh] object-contain transition-transform duration-700 group-hover:scale-[1.01]" 
-                          referrerPolicy="no-referrer" 
-                        />
-                        {/* BLACK TRANSPARENT HOVER FOR PHOTO */}
+                      <div onClick={() => setFullscreenImage(selectedRecord.thumb_url)} className="w-full cursor-zoom-in relative group">
+                        <img src={selectedRecord.thumb_url} alt="Verified" className="w-full h-auto min-h-[300px] max-h-[70vh] object-contain transition-transform duration-700 group-hover:scale-[1.01]" referrerPolicy="no-referrer" />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Maximize2 className="text-white w-12 h-12" />
                         </div>
-                        
                         <button className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-slate-900 cursor-pointer">
                           <Maximize2 size={20} />
                         </button>
                       </div>
                     )}
-
-                    {/* BADGE LABELS: Aligned to match margins */}
                     <div className={`absolute top-4 left-4 px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-widest shadow-md text-white z-10 ${selectedRecord.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
-                      {selectedRecord.isBatch ? "Full Album" : "Souvenir Photo"}
+                      {selectedRecord.isBatch ? "Album" : "Souvenir Photo"}
                     </div>
                   </div>
 
-                  {/* INFO & ACTIONS AREA */}
                   <div className={`flex flex-col ${selectedRecord.isBatch ? 'items-center text-center' : 'md:flex-row md:items-center justify-between gap-8'}`}>
-                    
-                    {/* TEXT CONTENT */}
                     <div className={`space-y-2 ${selectedRecord.isBatch ? 'mb-8' : ''}`}>
                       <h2 className={`cursor-pointer ${selectedRecord.isBatch ? 'text-[18px]' : 'text-[20px] md:text-[24px]'} font-black text-slate-900 uppercase tracking-tight leading-tight`}>
                         {selectedRecord.album_name || selectedRecord.title}
@@ -367,47 +435,33 @@ function VerificationContent() {
                         <p className={`font-black uppercase tracking-wider cursor-pointer ${selectedRecord.isBatch ? 'text-green-600 text-[13px]' : 'text-blue-600 text-[15px]'}`}>
                           {selectedRecord.photo_code || selectedRecord.album_code}
                         </p>
-                        <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest cursor-default">
-                          {selectedRecord.isBatch ? "Digital Collection" : `Captured: ${new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
+<p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest cursor-default">
+                          {selectedRecord.isBatch ? "Created: " : "Captured: "}
+                          {new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
                       </div>
                     </div>
 
-                    {/* BUTTONS: Stacked for Album, Row for Photo */}
                     <div className={`flex flex-col gap-3 w-full ${selectedRecord.isBatch ? '' : 'md:flex-row md:w-auto'}`}>
                       {selectedRecord.isBatch ? (
                         <>
-                          <a 
-                            href={selectedRecord.share_link} 
-                            target="_blank" 
-                            className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 hover:bg-green-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer"
-                          >
+                          <a href={selectedRecord.share_link} target="_blank" className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 hover:bg-green-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer">
                             <ExternalLink size={16} /> Open Album
                           </a>
-                          <button 
-                            onClick={shareToFacebook} 
-                            className="w-full bg-[#1877F2] text-white py-4 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer"
-                          >
-                            <Facebook size={16} /> Share to Feed
+                          <button onClick={handleShare} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black text-[12px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer">
+                            <Share2 size={16} /> Share Album
                           </button>
-                          <button 
-                            onClick={copyToClipboard} 
-                            className={`w-full py-4 rounded-xl border-2 font-black text-[12px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"}`}
-                          >
+                          <button onClick={copyToClipboard} className={`w-full py-4 rounded-xl border-2 font-black text-[12px] uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"}`}>
                             {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied" : "Copy Link"}
                           </button>
                         </>
                       ) : (
                         <>
-                          <button 
-                            onClick={() => handleDownload(selectedRecord.share_link, selectedRecord.photo_code)} 
-                            disabled={downloading} 
-                            className="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer"
-                          >
+                          <button onClick={() => handleDownload(selectedRecord.share_link, selectedRecord.photo_code)} disabled={downloading} className="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer">
                             {downloading ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />} Download Photo
                           </button>
-                          <button onClick={shareToFacebook} className="w-full md:w-auto bg-[#1877F2] text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer">
-                            <Facebook size={18} /> Share
+                          <button onClick={handleShare} className="w-full md:w-auto bg-blue-600 text-white px-8 py-4 rounded-xl font-black text-[13px] flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest shadow-md cursor-pointer">
+                            <Share2 size={18} /> Share Photo
                           </button>
                           <button onClick={copyToClipboard} className={`w-full md:w-auto p-4 px-8 rounded-xl border-2 transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${copied ? "bg-green-50 border-green-200 text-green-600" : "bg-white border-slate-100 text-slate-400 hover:text-blue-600 hover:border-blue-100 shadow-sm"}`}>
                             {copied ? <Check size={20} /> : <Copy size={20} />}
@@ -427,16 +481,21 @@ function VerificationContent() {
                   <div 
                     key={r.isBatch ? `batch-${r.id}` : `photo-${r.id}`} 
                     onClick={() => { 
-                        setSelectedRecord(r); 
-                        const code = r.photo_code || r.album_code;
-                        window.history.pushState({ c: code }, "", `?c=${code}`); 
+                        setLoadingType('results');
+                        setLoading(true);
+                        setTimeout(() => {
+                          setSelectedRecord(r); 
+                          const code = r.photo_code || r.album_code;
+                          window.history.pushState({ c: code }, "", `?c=${code}`);
+                          setLoading(false);
+                        }, 600);
                     }} 
                     className="bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-600 transition-all cursor-pointer group shadow-md hover:shadow-2xl relative"
                   >
                     <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-4 bg-slate-50 relative">
                       <img src={r.thumb_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
-                      <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-white shadow-md ${r.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
-                        {r.isBatch ? "Full Album" : "Souvenir Photo"}
+                      <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-lg text-[6px] font-bold uppercase text-white shadow-md ${r.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
+                        {r.isBatch ? "Album" : "Souvenir Photo"}
                       </div>
                     </div>
                     <div className="px-1 space-y-2">
@@ -456,11 +515,11 @@ function VerificationContent() {
         )}
       </AnimatePresence>
 
-      {/* SCANNER MODAL */}
+      {/* 5. QR SCANNER MODAL */}
       <AnimatePresence>
         {showScanner && (
-          <div className="fixed inset-0 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-md rounded-lg p-6 shadow-2xl relative border border-slate-100">
+          <div className="fixed inset-0 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative border border-slate-100 overflow-hidden">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-50 p-2 rounded-md">
@@ -472,33 +531,29 @@ function VerificationContent() {
                   <X size={20} />
                 </button>
               </div>
-              <div id="reader" className="w-full aspect-square rounded-md overflow-hidden border-2 border-blue-600 bg-slate-950 shadow-inner relative z-10"></div>
-              <div className="mt-6 text-center">
-                <p className="text-slate-500 font-bold text-[11px] uppercase tracking-widest leading-relaxed">
-                  Scan any DBCAS Photo or Album QR code.
-                </p>
+              <div className="relative w-full aspect-square bg-slate-950 rounded-2xl overflow-hidden border-4 border-blue-600 shadow-inner">
+                <div id="reader" className="w-full h-full"></div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ERROR MODAL */}
+      {/* 6. ERROR MODAL */}
       <AnimatePresence>
         {showErrorModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[200]">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-lg p-8 max-w-sm w-full text-center shadow-2xl">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[600]">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
               <AlertTriangle className="text-red-600 w-12 h-12 mx-auto mb-4" />
               <h3 className="text-[15px] font-bold text-slate-900 mb-2 uppercase tracking-widest">Record Not Found</h3>
-              <p className="text-slate-500 font-bold text-[12px] leading-relaxed px-4">The code entered does not match any photo or batch album in our records.</p>
-              <button onClick={() => setShowErrorModal(false)} className="w-full bg-slate-900 text-white py-4 rounded-md font-bold text-[12px] uppercase mt-6 hover:bg-slate-800 transition-all cursor-pointer">Try Again</button>
+              <button onClick={() => setShowErrorModal(false)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-[12px] uppercase mt-6 hover:bg-slate-800 transition-all cursor-pointer">Try Again</button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      <footer className="py-12 px-6 mt-10 border-t border-slate-100">
-          <p className="text-[12px] text-center font-bold text-slate-300">
+      <footer className="py-12 px-6 mt-10 border-t border-slate-100 text-center">
+          <p className="text-[12px] font-bold text-slate-300">
             Digital Image Sharing made better!<br/>
             Capture and Share: Image Sharing System © 2026
           </p>
