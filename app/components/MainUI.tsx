@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, QrCode, Download, 
-  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, ArrowRight, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink, Maximize2, Share2
+  CheckCircle2, X, Loader2, ImageIcon, ArrowLeft, ArrowRight, AlertTriangle, Copy, Check, Camera, Info, Layers, ExternalLink, Maximize2, Share2, History
 } from "lucide-react"; 
 import { searchPhotoRecords, getDownloadBlob } from "@/app/actions/photoActions";
 import { getBatchAlbums } from "@/app/actions/batchActions";
@@ -23,11 +23,28 @@ function VerificationContent() {
   const [copied, setCopied] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  
   const [notification, setNotification] = useState<{msg: string, type: 'success' | 'info'} | null>(null);
 
   const searchParams = useSearchParams();
   const codeFromURL = searchParams.get("c");
   const keywordFromURL = searchParams.get("s");
+
+  // --- HANDLE CLICK OUTSIDE FOR DROPDOWN ---
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // --- 1. QR SCANNER INITIALIZATION ---
   useEffect(() => {
@@ -69,207 +86,446 @@ function VerificationContent() {
     }
   }, [showScanner]);
 
-  // --- 2. DYNAMIC TITLE LOGIC ---
+  // --- LOAD SEARCH HISTORY ---
   useEffect(() => {
+    const history = localStorage.getItem("photoSearchHistory");
+    if (history) {
+      try {
+        setSearchHistory(JSON.parse(history));
+      } catch (e) {
+        console.error("Could not parse search history", e);
+      }
+    }
+  }, []);
+
+  const saveToHistory = (query: string) => {
+    setSearchHistory((prev) => {
+      const newHistory = [query, ...prev.filter((q) => q !== query)].slice(0, 5); // Keep last 5 searches
+      localStorage.setItem("photoSearchHistory", JSON.stringify(newHistory));
+      return newHistory;
+    });
+  };
+
+  const clearHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem("photoSearchHistory");
+    setShowDropdown(false);
+  };
+
+  // --- 2. DYNAMIC TITLE & OG METADATA LOGIC ---
+  useEffect(() => {
+    let title = "Capture and Share - Digital Image Sharing";
+    let ogImage = "";
+
     if (loading) {
-      document.title = loadingType === 'search' ? "Searching..." : "Preparing...";
+      title = loadingType === 'search' ? "Searching..." : "Preparing...";
     } else if (selectedRecord) {
-      const title = selectedRecord.photo_code || selectedRecord.album_code;
-      document.title = `${title} | Capture and Share - Digital Image Sharing`;
+      const code = selectedRecord.photo_code || selectedRecord.album_code;
+      title = `${code} | Capture and Share`;
+      ogImage = selectedRecord.thumb_url || "";
     } else if (results.length > 0) {
-      document.title = `${results.length} Results for "${searchQuery}"`;
-    } else {
-      document.title = "Capture and Share - Digital Image Sharing";
+      title = `${searchQuery} | Capture and Share - Digital Image Sharing`;
+      // Use the first thumbnail item to appear in the results for the OG image
+      ogImage = results[0].thumb_url || "";
+    }
+
+    // Update document title
+    document.title = title;
+
+    // Dynamically update or create OG Title meta tag
+    let ogTitleMeta = document.querySelector('meta[property="og:title"]');
+    if (!ogTitleMeta) {
+      ogTitleMeta = document.createElement('meta');
+      ogTitleMeta.setAttribute('property', 'og:title');
+      document.head.appendChild(ogTitleMeta);
+    }
+    ogTitleMeta.setAttribute('content', title);
+
+    // Dynamically update or create OG Image meta tag
+    if (ogImage) {
+      let ogImageMeta = document.querySelector('meta[property="og:image"]');
+      if (!ogImageMeta) {
+        ogImageMeta = document.createElement('meta');
+        ogImageMeta.setAttribute('property', 'og:image');
+        document.head.appendChild(ogImageMeta);
+      }
+      ogImageMeta.setAttribute('content', ogImage);
     }
   }, [selectedRecord, results, searchQuery, loading, loadingType]);
 
-  // --- 3. BROWSER BACK BUTTON LOGIC ---
-  useEffect(() => {
-    const handlePopState = () => {
-      const params = new URLSearchParams(window.location.search);
-      const c = params.get("c");
-      const s = params.get("s");
+// --- 3. BROWSER BACK BUTTON LOGIC ---
+useEffect(() => {
+  const handlePopState = async (event: PopStateEvent) => {
+    const params = new URLSearchParams(window.location.search);
 
-      if (!c && !s) {
-        setSelectedRecord(null);
-        setResults([]);
-        setSearchQuery("");
-      } else if (c) {
-        handleSearch(c);
-      } else if (s) {
-        setSearchQuery(s.toUpperCase());
-        handleSearch(s);
-      }
-    };
+    const c = params.get("c");
+    const s = params.get("s");
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+    // Browser history state
+    const state = event.state || window.history.state;
 
-  // --- 4. DIRECT LINK AUTO-LOADER (FIXED) ---
-  useEffect(() => {
-    if (codeFromURL || keywordFromURL) {
-      setLoadingType('search');
-      setLoading(true); // Trigger loading UI immediately
-      
-      const query = codeFromURL || keywordFromURL;
-      if (keywordFromURL) setSearchQuery(keywordFromURL.toUpperCase());
-
-      // Wrap in timeout to ensure the Loading Modal renders before the heavy fetch starts
-      const t = setTimeout(() => {
-        handleSearch(query as string);
-      }, 100);
-      
-      return () => clearTimeout(t);
+    // HOME PAGE
+    if (!c && !s) {
+      setSelectedRecord(null);
+      setResults([]);
+      setSearchQuery("");
+      return;
     }
-  }, [codeFromURL, keywordFromURL]);
 
-  const notify = (msg: string, type: 'success' | 'info' = 'success') => {
-    setNotification({ msg, type });
-    setTimeout(() => setNotification(null), 3000);
+    // DETAIL PAGE
+    if (c) {
+      // Restore previous multi-results instantly
+      if (state?.previousResults?.length > 0) {
+        setResults(state.previousResults);
+        setSearchQuery(state.previousQuery || "");
+
+        const selected = state.previousResults.find(
+          (r: any) =>
+            r.photo_code === c ||
+            r.album_code === c
+        );
+
+        setSelectedRecord(selected || null);
+      } else {
+        // Direct link fallback
+        await handleSearch(c, false);
+      }
+
+      return;
+    }
+
+    // SEARCH RESULTS PAGE
+    if (s) {
+      // Restore cached results immediately
+      if (state?.results?.length > 0) {
+        setSelectedRecord(null);
+        setResults(state.results);
+        setSearchQuery(state.query || s.toUpperCase());
+      } else {
+        // Fallback if state missing
+        await handleSearch(s, false);
+      }
+
+      return;
+    }
   };
 
-  const handleSearch = async (query: string = searchQuery) => {
-    if (!query) return;
-    
+  window.addEventListener("popstate", handlePopState);
+
+  return () => {
+    window.removeEventListener("popstate", handlePopState);
+  };
+}, []);
+
+
+// --- 4. DIRECT LINK AUTO-LOADER ---
+useEffect(() => {
+  if (codeFromURL || keywordFromURL) {
+    setLoadingType('search');
     setLoading(true);
 
-    let cleanQuery = query.trim().toUpperCase();
-    const dashlessPattern = /^([A-Z]{2})(\d{4})(\d{4})$/;
-    if (dashlessPattern.test(cleanQuery)) {
-      cleanQuery = cleanQuery.replace(dashlessPattern, '$1-$2-$3');
+    const query = codeFromURL || keywordFromURL;
+
+    if (keywordFromURL) {
+      setSearchQuery(keywordFromURL.toUpperCase());
     }
 
-    try {
-      const photoResult = await searchPhotoRecords(cleanQuery);
-      let foundPhotos = (photoResult?.success && photoResult.data) ? (photoResult.data as any[]) : [];
+    const t = setTimeout(() => {
+      handleSearch(query as string, false);
+    }, 100);
 
-      const batchResult = await getBatchAlbums();
-      let matchedBatches: any[] = [];
-      
-      if (batchResult?.success && Array.isArray(batchResult.data)) {
-        matchedBatches = (batchResult.data as any[])
-          .filter((b: any) => {
-            const searchNormalized = cleanQuery.replace(/\s/g, '');
-            const titleMatch = b.title.toUpperCase().includes(cleanQuery);
-            const codeMatch = b.album_code.toUpperCase().includes(searchNormalized);
-            return titleMatch || codeMatch;
-          })
-          .map((b: any) => ({ ...b, isBatch: true }));
-      }
+    return () => clearTimeout(t);
+  }
+}, [codeFromURL, keywordFromURL]);
 
-      const allResults = [...matchedBatches, ...foundPhotos];
+const notify = (msg: string, type: 'success' | 'info' = 'success') => {
+  setNotification({ msg, type });
+  setTimeout(() => setNotification(null), 3000);
+};
 
-      if (allResults.length === 0) {
-        setShowErrorModal(true);
-        setResults([]);
-        setSelectedRecord(null);
-      } else if (allResults.length === 1) {
+const handleSearch = async (
+  query: string = searchQuery,
+  pushHistory: boolean = true
+) => {
+  if (!query) return;
+
+  setShowDropdown(false);
+  setLoading(true);
+
+  let cleanQuery = query.trim().toUpperCase();
+
+  const dashlessPattern = /^([A-Z]{2})(\d{4})(\d{4})$/;
+
+  if (dashlessPattern.test(cleanQuery)) {
+    cleanQuery = cleanQuery.replace(
+      dashlessPattern,
+      '$1-$2-$3'
+    );
+  }
+
+  try {
+    const photoResult = await searchPhotoRecords(cleanQuery);
+
+    let foundPhotos =
+      (photoResult?.success && photoResult.data)
+        ? (photoResult.data as any[])
+        : [];
+
+    const batchResult = await getBatchAlbums();
+
+    let matchedBatches: any[] = [];
+
+    if (batchResult?.success && Array.isArray(batchResult.data)) {
+      matchedBatches = (batchResult.data as any[])
+        .filter((b: any) => {
+          const searchNormalized = cleanQuery.replace(/\s/g, '');
+
+          const titleMatch =
+            b.title.toUpperCase().includes(cleanQuery);
+
+          const codeMatch =
+            b.album_code.toUpperCase().includes(searchNormalized);
+
+          return titleMatch || codeMatch;
+        })
+        .map((b: any) => ({
+          ...b,
+          isBatch: true,
+        }));
+    }
+
+    const allResults = [
+      ...matchedBatches,
+      ...foundPhotos,
+    ];
+
+    if (allResults.length === 0) {
+      setShowErrorModal(true);
+      setResults([]);
+      setSelectedRecord(null);
+    } else {
+      saveToHistory(cleanQuery);
+
+      // SINGLE RESULT
+      if (allResults.length === 1) {
         const single = allResults[0];
+
         setSelectedRecord(single);
         setResults([]);
-        const finalCode = single.photo_code || single.album_code;
-        window.history.pushState({ c: finalCode }, "", `?c=${finalCode}`);
-      } else {
+        setSearchQuery(cleanQuery);
+
+        const finalCode =
+          single.photo_code || single.album_code;
+
+        if (pushHistory) {
+          window.history.pushState(
+            {
+              c: finalCode,
+            },
+            "",
+            `?c=${finalCode}`
+          );
+        }
+      }
+
+      // MULTIPLE RESULTS
+      else {
         setSelectedRecord(null);
         setResults(allResults);
-        window.history.pushState({ s: cleanQuery }, "", `?s=${encodeURIComponent(cleanQuery)}`);
+        setSearchQuery(cleanQuery);
+
+        if (pushHistory) {
+          window.history.pushState(
+            {
+              s: cleanQuery,
+              results: allResults,
+              query: cleanQuery,
+            },
+            "",
+            `?s=${encodeURIComponent(cleanQuery)}`
+          );
+        }
       }
-    } catch (err) {
-      console.error("Search error:", err);
-      setShowErrorModal(true);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error("Search error:", err);
+    setShowErrorModal(true);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const resetSearch = () => {
-    setSelectedRecord(null);
-    setResults([]);
-    setSearchQuery("");
-    window.history.pushState({}, '', '/');
-  };
+const resetSearch = () => {
+  setSelectedRecord(null);
+  setResults([]);
+  setSearchQuery("");
 
-  const getShareLink = (): string => {
-    if (typeof window === "undefined") return "";
-    const baseUrl = window.location.origin;
-    const code = selectedRecord?.photo_code || selectedRecord?.album_code;
-    if (code) return `${baseUrl}/?c=${code}`;
-    if (searchQuery) return `${baseUrl}/?s=${encodeURIComponent(searchQuery)}`;
-    return baseUrl;
-  };
+  window.history.pushState({}, '', '/');
+};
 
-  const copyToClipboard = () => {
-    const linkToCopy = getShareLink();
-    if (linkToCopy) {
-      navigator.clipboard.writeText(String(linkToCopy)).then(() => {
+const handleBack = () => {
+  // Go back to results page if currently viewing detail
+  if (selectedRecord) {
+    window.history.back();
+    return;
+  }
+
+  // Otherwise reset
+  resetSearch();
+};
+
+const getShareLink = (): string => {
+  if (typeof window === "undefined") return "";
+
+  const baseUrl = window.location.origin;
+
+  const code =
+    selectedRecord?.photo_code ||
+    selectedRecord?.album_code;
+
+  if (code) {
+    return `${baseUrl}/?c=${code}`;
+  }
+
+  if (searchQuery) {
+    return `${baseUrl}/?s=${encodeURIComponent(searchQuery)}`;
+  }
+
+  return baseUrl;
+};
+
+const copyToClipboard = () => {
+  const linkToCopy = getShareLink();
+
+  if (linkToCopy) {
+    navigator.clipboard
+      .writeText(String(linkToCopy))
+      .then(() => {
         setCopied(true);
-        notify("Link Copied to Clipboard!", "success");
+
+        notify(
+          "Link Copied to Clipboard!",
+          "success"
+        );
+
         setTimeout(() => setCopied(false), 2000);
       });
-    }
-  };
+  }
+};
 
-  const handleDownload = async (url: string, code: string) => {
-    setDownloading(true);
-    try {
-      const result = await getDownloadBlob(url, code);
-      if (result.success && result.base64) {
-        const link = document.createElement("a");
-        link.href = `data:${result.contentType};base64,${result.base64}`;
-        link.download = `${code}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        notify("Image Download Successful!", "success");
-      } else {
-        window.open(url, "_blank");
-      }
-    } catch (err) {
+const handleDownload = async (
+  url: string,
+  code: string
+) => {
+  setDownloading(true);
+
+  try {
+    const result = await getDownloadBlob(url, code);
+
+    if (result.success && result.base64) {
+      const link = document.createElement("a");
+
+      link.href =
+        `data:${result.contentType};base64,${result.base64}`;
+
+      link.download = `${code}.jpg`;
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      document.body.removeChild(link);
+
+      notify(
+        "Image Download Successful!",
+        "success"
+      );
+    } else {
       window.open(url, "_blank");
     }
-    setDownloading(false);
-  };
+  } catch (err) {
+    window.open(url, "_blank");
+  }
+
+  setDownloading(false);
+};
 
 const handleShare = async () => {
-    const link = getShareLink();
-    const title = selectedRecord?.album_name || selectedRecord?.title || "Digital Image Sharing";
-    
-    // Determine the caption based on the record type
-    const shareText = selectedRecord?.isBatch 
-      ? `Check out ${title} on:` 
-      : `Check out this souvenir photo from ${title}!`;
+  const link = getShareLink();
 
-    const shareData = {
-      title: title,
-      text: shareText,
-      url: link,
-    };
+  const title =
+    selectedRecord?.album_name ||
+    selectedRecord?.title ||
+    "Digital Image Sharing";
 
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-      } catch (err) {
-        console.log("Share cancelled or failed", err);
-      }
-    } else {
-      copyToClipboard();
-      notify("Share API not supported. Link copied instead!", "info");
-    }
+  const shareText = selectedRecord?.isBatch
+    ? `Check out ${title} on:`
+    : `Check out this souvenir photo from ${title}!`;
+
+  const shareData = {
+    title,
+    text: shareText,
+    url: link,
   };
+
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+    } catch (err) {
+      console.log(
+        "Share cancelled or failed",
+        err
+      );
+    }
+  } else {
+    copyToClipboard();
+
+    notify(
+      "Share API not supported. Link copied instead!",
+      "info"
+    );
+  }
+};
+
+
+// Helper to transition into detailed view
+const handleSelectRecord = (record: any) => {
+  setLoadingType('results');
+  setLoading(true);
+
+  setTimeout(() => {
+    setSelectedRecord(record);
+
+    const code =
+      record.photo_code ||
+      record.album_code;
+
+    window.history.pushState(
+      {
+        c: code,
+        previousResults: results,
+        previousQuery: searchQuery,
+      },
+      "",
+      `?c=${code}`
+    );
+
+    setLoading(false);
+  }, 300);
+};
 
   return (
     <div className="relative min-h-screen bg-[#f7f9ff] text-slate-900 font-sans overflow-x-hidden">
       
-      {/* 1. LOADING MODAL (TOPMOST STACK) */}
+      {/* 1. LOADING MODAL */}
       <AnimatePresence>
         {loading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            style={{ zIndex: 9999 }}
             className="fixed inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-md pointer-events-auto"
+            style={{ zIndex: 9999 }}
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
@@ -285,9 +541,6 @@ const handleShare = async () => {
                 <h3 className="text-[14px] font-black text-slate-900 uppercase tracking-[0.25em] animate-pulse">
                   {loadingType === 'search' ? 'Loading...' : 'Preparing...'}
                 </h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  {loadingType === 'search' ? '' : ''}
-                </p>
               </div>
             </motion.div>
           </motion.div>
@@ -302,7 +555,8 @@ const handleShare = async () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setFullscreenImage(null)}
-            className="fixed inset-0 z-[300] bg-slate-950 flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+            className="fixed inset-0 bg-slate-950 flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+            style={{ zIndex: 9980 }}
           >
             <motion.button 
               whileHover={{ scale: 1.1 }}
@@ -329,7 +583,8 @@ const handleShare = async () => {
             initial={{ opacity: 0, y: 50 }} 
             animate={{ opacity: 1, y: 0 }} 
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[400] w-max"
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 w-max"
+            style={{ zIndex: 9990 }}
           >
             <div className={`flex items-center gap-3 px-6 py-3 rounded-full shadow-2xl font-bold text-white text-[12px] uppercase tracking-widest ${notification.type === 'success' ? 'bg-green-600' : 'bg-blue-600'}`}>
               {notification.type === 'success' ? <CheckCircle2 size={16} /> : <Info size={16} />}
@@ -347,29 +602,81 @@ const handleShare = async () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex flex-col items-center justify-center min-h-[90vh] p-4 text-center"
+            className="flex flex-col items-center justify-center min-h-[90vh] p-4 text-center relative z-0"
           >
             <div className="flex flex-col items-center mb-4">
               <img src="logo.png" alt="Logo" className="max-w-[320px] md:max-w-[400px] h-auto" />
             </div>
 
-            <div className="w-full max-w-md space-y-4">
-              <div className="relative">
+            {/* SEARCH CONTAINER WRAPPER */}
+            <div className="w-full max-w-md space-y-4 relative z-20" ref={searchContainerRef}>
+              
+              <div className="relative w-full">
                 <input 
                   type="text" 
                   placeholder="Enter Photo/Album Code"
-                  className="w-full bg-white border border-slate-200 p-4 pr-32 rounded-lg text-[15px] font-bold text-slate-900 shadow-sm outline-none focus:border-blue-600 transition-all uppercase"
+                  className="w-full bg-white border border-slate-200 p-4 pr-32 rounded-lg text-[15px] font-bold text-slate-900 shadow-sm outline-none focus:border-blue-600 transition-all uppercase relative z-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  onFocus={() => setShowDropdown(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setShowDropdown(false);
+                      handleSearch();
+                    }
+                  }}
                 />
                 <button 
                   onClick={() => handleSearch()}
-                  className="absolute right-1.5 top-1.5 bottom-1.5 bg-blue-600 text-white px-5 rounded-md hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2 shadow-md cursor-pointer"
+                  className="absolute right-1.5 top-1.5 bottom-1.5 bg-blue-600 text-white px-5 rounded-md hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-2 shadow-md cursor-pointer z-20"
                 >
                   <Search size={16} />
                   <span className="font-bold uppercase text-[12px] tracking-widest">Search</span>
                 </button>
+
+                {/* SEARCH HISTORY DROPDOWN */}
+                <AnimatePresence>
+                  {showDropdown && searchHistory.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden z-30"
+                    >
+                      <div className="flex justify-between items-center px-4 py-3 bg-slate-50/50 border-b border-slate-50">
+                        <div className="flex items-center gap-1.5 text-slate-400">
+                          <History size={14} />
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Recent Searches</span>
+                        </div>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearHistory();
+                          }} 
+                          className="text-[10px] font-bold text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="flex flex-col max-h-60 overflow-y-auto">
+                        {searchHistory.map((item, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setSearchQuery(item);
+                              handleSearch(item);
+                              setShowDropdown(false);
+                            }}
+                            className="group w-full text-left px-4 py-3 bg-white hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-[12px] font-bold uppercase tracking-wider transition-all cursor-pointer border-b border-slate-50 last:border-none flex justify-between items-center"
+                          >
+                            {item}
+                            <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className="flex items-center justify-center gap-4 py-2">
@@ -379,8 +686,11 @@ const handleShare = async () => {
               </div>
 
               <button 
-                onClick={() => setShowScanner(true)}
-                className="w-full bg-white text-blue-600 p-4 rounded-lg font-bold text-[14px] flex items-center justify-center gap-3 border border-slate-200 hover:bg-slate-50 transition-all active:scale-[0.98] uppercase tracking-widest cursor-pointer"
+                onClick={() => {
+                  setShowDropdown(false);
+                  setShowScanner(true);
+                }}
+                className="w-full bg-white text-blue-600 p-4 rounded-lg font-bold text-[14px] flex items-center justify-center gap-3 border border-slate-200 hover:bg-slate-50 transition-all active:scale-[0.98] uppercase tracking-widest cursor-pointer shadow-sm"
               >
                 <QrCode size={18} /> Scan QR Photo Code
               </button>
@@ -392,10 +702,10 @@ const handleShare = async () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="max-w-6xl mx-auto p-4 md:p-6"
+            className="max-w-6xl mx-auto p-4 md:p-6 relative z-0"
           >
             <div className="flex justify-between items-center mb-8 mt-4">
-              <button onClick={resetSearch} className="flex items-center gap-2 font-bold text-blue-600 hover:bg-blue-50 p-2 px-4 rounded-md transition-all text-[13px] uppercase tracking-widest cursor-pointer">
+              <button onClick={handleBack} className="flex items-center gap-2 font-bold text-blue-600 hover:bg-blue-50 p-2 px-4 rounded-md transition-all text-[13px] uppercase tracking-widest cursor-pointer">
                 <ArrowLeft size={18} /> Back
               </button>
               <h2 className="text-[14px] font-bold uppercase text-slate-400 tracking-widest">
@@ -421,7 +731,7 @@ const handleShare = async () => {
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Maximize2 className="text-white w-12 h-12" />
                         </div>
-                        <button className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-slate-900 cursor-pointer">
+                        <button className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md p-3 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-slate-900 cursor-pointer z-10">
                           <Maximize2 size={20} />
                         </button>
                       </div>
@@ -440,7 +750,7 @@ const handleShare = async () => {
                         <p className={`font-black uppercase tracking-wider cursor-pointer ${selectedRecord.isBatch ? 'text-green-600 text-[13px]' : 'text-blue-600 text-[15px]'}`}>
                           {selectedRecord.photo_code || selectedRecord.album_code}
                         </p>
-<p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest cursor-default">
+                        <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest cursor-default">
                           {selectedRecord.isBatch ? "" : "Captured: "}
                           {new Date(selectedRecord.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                         </p>
@@ -480,37 +790,77 @@ const handleShare = async () => {
               </div>
             )}
 
-{!selectedRecord && results.length > 0 && (
+            {!selectedRecord && results.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {results.map((r) => (
                   <div 
                     key={r.isBatch ? `batch-${r.id}` : `photo-${r.id}`} 
                     onClick={() => { 
-                        setLoadingType('results');
-                        setLoading(true);
-                        setTimeout(() => {
-                          setSelectedRecord(r); 
-                          const code = r.photo_code || r.album_code;
-                          window.history.pushState({ c: code }, "", `?c=${code}`);
-                          setLoading(false);
-                        }, 600);
-                    }} 
-                    className="bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-600 transition-all cursor-pointer group shadow-md hover:shadow-2xl relative"
+                      if (r.isBatch && r.share_link) {
+                        window.open(r.share_link, "_blank"); 
+                      } else {
+                        handleSelectRecord(r);
+                      }
+                    }}
+                    className="bg-white p-4 rounded-2xl border border-slate-100 hover:border-blue-600 transition-all flex flex-col group shadow-md hover:shadow-2xl relative cursor-pointer"
                   >
                     <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-4 bg-slate-50 relative">
                       <img src={r.thumb_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
-                      <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-lg text-[6px] font-bold uppercase text-white shadow-md ${r.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
+                      <div className={`absolute top-3 left-3 px-3 py-1.5 rounded-lg text-[6px] font-bold uppercase text-white shadow-md z-10 ${r.isBatch ? 'bg-green-600' : 'bg-blue-600'}`}>
                         {r.isBatch ? "Album" : "Souvenir Photo"}
                       </div>
                     </div>
-                    <div className="px-1 space-y-2">
+                    <div className="px-1 space-y-2 flex-grow">
                       <h3 className="text-[14px] font-black text-slate-900 uppercase tracking-tight line-clamp-1">{r.album_name || r.title}</h3>
                       <div className="flex justify-between items-center">
                         <p className={`font-black text-[13px] uppercase tracking-wider ${r.isBatch ? 'text-green-600' : 'text-blue-600'}`}>
                           {r.photo_code || r.album_code}
                         </p>
-                        <ArrowRight className="text-slate-300 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" size={16} />
                       </div>
+                    </div>
+
+                    <div className="mt-4 flex gap-2 w-full">
+                      {r.isBatch ? (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (navigator.share) {
+                                navigator.share({
+                                  title: r.album_name || r.title,
+                                  text: `Check out ${r.album_name || r.title} on:`,
+                                  url: r.share_link,
+                                }).catch((err) => console.log("Share cancelled or failed", err));
+                              } else {
+                                navigator.clipboard.writeText(r.share_link);
+                                notify("Link copied to clipboard!", "success");
+                              }
+                            }}
+                            className="flex-1 h-10 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <Share2 size={14} /> Share
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (r.share_link) window.open(r.share_link, "_blank");
+                            }}
+                            className="flex-1 h-10 bg-green-600 text-white hover:bg-green-700 rounded-xl font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <ExternalLink size={14} /> Open
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSelectRecord(r);
+                          }}
+                          className="w-full h-10 bg-blue-600 text-white hover:bg-blue-700 rounded-xl font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                        >
+                          <ArrowRight size={14} /> View
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -523,7 +873,10 @@ const handleShare = async () => {
       {/* 5. QR SCANNER MODAL */}
       <AnimatePresence>
         {showScanner && (
-          <div className="fixed inset-0 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+            style={{ zIndex: 9970 }}
+          >
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative border border-slate-100 overflow-hidden">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-3">
@@ -547,8 +900,11 @@ const handleShare = async () => {
       {/* 6. ERROR MODAL */}
       <AnimatePresence>
         {showErrorModal && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[600]">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
+            style={{ zIndex: 9970 }}
+          >
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
               <AlertTriangle className="text-red-600 w-12 h-12 mx-auto mb-4" />
               <h3 className="text-[15px] font-bold text-slate-900 mb-2 uppercase tracking-widest">Record Not Found</h3>
               <button onClick={() => setShowErrorModal(false)} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-[12px] uppercase mt-6 hover:bg-slate-800 transition-all cursor-pointer">Try Again</button>
@@ -557,7 +913,7 @@ const handleShare = async () => {
         )}
       </AnimatePresence>
 
-      <footer className="py-12 px-6 mt-10 border-t border-slate-100 text-center">
+      <footer className="py-12 px-6 mt-10 border-t border-slate-100 text-center relative z-0">
           <p className="text-[12px] font-bold text-slate-300">
             Digital Image Sharing made better!<br/>
             Capture and Share: Image Sharing System © 2026
