@@ -360,17 +360,55 @@ const resetSearch = () => {
   setResults([]);
   setSearchQuery("");
 
-  window.history.pushState({}, '', '/');
+  window.history.replaceState(
+    {},
+    "",
+    "/"
+  );
 };
 
 const handleBack = () => {
-  // Go back to results page if currently viewing detail
+  const state = window.history.state;
+
+  // DETAIL PAGE
   if (selectedRecord) {
-    window.history.back();
+
+    // Came from multi-results page
+    if (
+      state?.previousResults &&
+      state.previousResults.length > 0
+    ) {
+      setSelectedRecord(null);
+
+      setResults(state.previousResults);
+
+      setSearchQuery(
+        state.previousQuery || ""
+      );
+
+      // Replace URL back to search results
+      window.history.pushState(
+        {
+          s: state.previousQuery,
+          results: state.previousResults,
+          query: state.previousQuery,
+        },
+        "",
+        `?s=${encodeURIComponent(
+          state.previousQuery
+        )}`
+      );
+
+      return;
+    }
+
+    // Direct link visit fallback
+    resetSearch();
+
     return;
   }
 
-  // Otherwise reset
+  // RESULTS PAGE -> HOME
   resetSearch();
 };
 
@@ -561,7 +599,7 @@ const handleSelectRecord = (record: any) => {
             <motion.button 
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              className="fixed top-6 right-6 text-white p-2 bg-white/10 rounded-full backdrop-blur-md"
+              className="fixed top-6 right-6 text-white p-2 bg-white/10 rounded-full backdrop-blur-md cursor-pointer"
             >
               <X size={32} />
             </motion.button>
@@ -644,7 +682,7 @@ const handleSelectRecord = (record: any) => {
                       className="absolute top-full left-0 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl overflow-hidden z-30"
                     >
                       <div className="flex justify-between items-center px-4 py-3 bg-slate-50/50 border-b border-slate-50">
-                        <div className="flex items-center gap-1.5 text-slate-400">
+                        <div className="flex items-center gap-2 text-slate-400">
                           <History size={14} />
                           <span className="text-[10px] font-bold uppercase tracking-widest">Recent Searches</span>
                         </div>
@@ -822,24 +860,44 @@ const handleSelectRecord = (record: any) => {
                     <div className="mt-4 flex gap-2 w-full">
                       {r.isBatch ? (
                         <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (navigator.share) {
-                                navigator.share({
-                                  title: r.album_name || r.title,
-                                  text: `Check out ${r.album_name || r.title} on:`,
-                                  url: r.share_link,
-                                }).catch((err) => console.log("Share cancelled or failed", err));
-                              } else {
-                                navigator.clipboard.writeText(r.share_link);
-                                notify("Link copied to clipboard!", "success");
-                              }
-                            }}
-                            className="flex-1 h-10 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                          >
-                            <Share2 size={14} /> Share
-                          </button>
+<button
+  onClick={(e) => {
+    e.stopPropagation();
+
+    const baseUrl = window.location.origin;
+
+    const albumCode =
+      r.album_code || r.photo_code;
+
+    const appShareLink =
+      `${baseUrl}/?c=${albumCode}`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: r.album_name || r.title,
+        text: `Check out ${r.album_name || r.title} on:`,
+        url: appShareLink,
+      }).catch((err) =>
+        console.log(
+          "Share cancelled or failed",
+          err
+        )
+      );
+    } else {
+      navigator.clipboard.writeText(
+        appShareLink
+      );
+
+      notify(
+        "Link copied to clipboard!",
+        "success"
+      );
+    }
+  }}
+  className="flex-1 h-10 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+>
+  <Share2 size={14} /> Share
+</button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
