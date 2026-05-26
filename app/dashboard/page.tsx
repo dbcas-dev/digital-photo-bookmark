@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<any[]>([]);
   const [batchRecords, setBatchRecords] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'individual' | 'batch'>('individual');
+const [activeTab, setActiveTab] = useState<'individual' | 'batch'>('batch');
   const [collapsedAlbums, setCollapsedAlbums] = useState<string[]>([]);
   
   // --- MODAL & VIEW STATES ---
@@ -247,158 +247,354 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
+{/* Navigation */}
+<nav className="sticky top-0 z-50 border-b border-slate-200 bg-white backdrop-blur-xl shadow-sm">
+  <div className="max-w-7xl mx-auto px-4 md:px-6">
+    
+    {/* DESKTOP + MOBILE CONTAINER */}
+    <div className="h-auto md:h-[78px] py-4 md:py-0 flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
 
-      {/* Navigation */}
-      <nav className="bg-white px-4 md:px-6 py-4 flex flex-col sm:flex-row justify-between items-center sticky top-0 z-40 shadow-sm border-b border-blue-50 gap-4 sm:gap-0">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-xl shadow-md shadow-blue-200">
-            <ImageIcon className="text-white w-5 h-5 md:w-6 md:h-6" />
-          </div>
-          <h1 className="font-bold text-md md:text-lg text-slate-900 whitespace-nowrap">Photobooth Admin</h1>
-        </div>
+      {/* LEFT SECTION */}
+      <div className="flex items-center justify-between md:justify-start w-full md:w-auto">
 
-        <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
-          <button 
-            onClick={() => { 
-              setEditId(null); 
-              setAlbumName(""); setShareLink(""); setThumbUrl(""); setBatchAlbumCode("");
-              setIsEditMode(true); 
-              setShowModal(true); 
-            }}
-            className="flex-1 sm:flex-none bg-blue-600 text-white px-4 md:px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-95 transition-all text-[12px] md:text-sm cursor-pointer whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" /> Add {activeTab === 'individual' ? 'Photo' : 'Album'}
-          </button>
+        <div className="flex items-center gap-3 min-w-0">
           
-          <button 
-            onClick={() => setShowSignOutConfirm(true)} 
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-red-600 font-bold hover:bg-red-50 px-4 md:px-6 py-3 rounded-xl transition-all text-[12px] md:text-sm cursor-pointer whitespace-nowrap"
-          >
-            <LogOut className="w-4 h-4" /> Sign Out
-          </button>
-        </div>
-      </nav>
+          {/* LOGO */}
+          <div className="relative flex-shrink-0">
+            <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 rounded-2xl" />
 
-      <main className="p-4 md:p-6 max-w-6xl mx-auto">
-        
-        {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 mb-8 gap-8">
-          <button 
-            onClick={() => setActiveTab('individual')}
-            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer uppercase tracking-wide ${activeTab === 'individual' ? 'text-blue-600' : 'text-slate-400'}`}
-          >
-            Souvenir Photos
-            {activeTab === 'individual' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-          </button>
-          <button 
-            onClick={() => setActiveTab('batch')}
-            className={`pb-4 text-sm font-bold transition-all relative cursor-pointer uppercase tracking-wide ${activeTab === 'batch' ? 'text-blue-600' : 'text-slate-400'}`}
-          >
-            Documentation Albums
-            {activeTab === 'batch' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-          </button>
+            <div className="relative bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-100 border border-blue-200">
+              <Layers className="text-white w-5 h-5 md:w-[22px] md:h-[22px]" />
+            </div>
+          </div>
+
+          {/* TITLE */}
+          <div className="min-w-0">
+            <h1 className="font-black text-[15px] md:text-[18px] text-slate-900 tracking-tight truncate">
+              Documentation Albums
+            </h1>
+
+            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-0.5">
+              Admin Dashboard
+            </p>
+          </div>
         </div>
 
-        {activeTab === 'individual' ? (
-          /* INDIVIDUAL ALBUM PHOTOS VIEW */
-          records.length === 0 ? (
-            <div className="bg-white rounded-lg border-2 border-dashed border-blue-100 p-12 md:p-24 text-center">
-              <p className="text-slate-400 text-md md:text-lg font-bold">Your individual gallery is empty.</p>
-            </div>
-          ) : (
-            <div className="space-y-6 md:space-y-8">
-              {Object.keys(groupedRecords).map((albumKey) => {
-                const isCollapsed = collapsedAlbums.includes(albumKey);
-                const sortedAlbumRecords = [...groupedRecords[albumKey]].sort((a, b) => 
-                  new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                );
+        {/* MOBILE SIGN OUT */}
+        <button
+          onClick={() => setShowSignOutConfirm(true)}
+          className="md:hidden flex items-center justify-center w-11 h-11 rounded-2xl border border-red-200 bg-white text-red-500 hover:bg-red-50 hover:border-red-300 transition-all active:scale-95 flex-shrink-0 cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+      </div>
 
-                return (
-                  <section key={albumKey} className="space-y-4">
-                    <div onClick={() => toggleAlbum(albumKey)} className="flex items-center justify-between p-3 md:p-4 rounded-lg cursor-pointer hover:bg-slate-50 transition-all group">
-                      <div className="flex items-center gap-2 md:gap-3 cursor-pointer">
-                        <Folder className={`${isCollapsed ? 'text-slate-400' : 'text-blue-600'} w-5 h-5 md:w-6 md:h-6 transition-colors`} />
-                        <h3 className="text-sm md:text-md font-bold text-slate-900 uppercase tracking-wide truncate max-w-[150px] md:max-w-none">{albumKey}</h3>
-                        <span className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-[10px] md:text-xs font-bold">{sortedAlbumRecords.length}</span>
-                      </div>
-                      <ChevronRight className={`text-slate-400 transition-transform duration-300 cursor-pointer ${isCollapsed ? '' : 'rotate-90'}`} />
-                    </div>
+      {/* RIGHT SECTION */}
+      <div className="flex items-center gap-3 w-full md:w-auto">
 
-                    {!isCollapsed && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                        {sortedAlbumRecords.map((record) => (
-                          <div key={record.id} 
-                            onClick={() => { 
-                              setEditId(record.id); 
-                              setAlbumName(record.album_name); 
-                              setShareLink(record.share_link); 
-                              setThumbUrl(record.thumb_url); 
-                              setIsEditMode(false); 
-                              setShowModal(true); 
-                            }}
-                            className="group relative rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-500 hover:shadow-xl transition-all active:scale-[0.98] bg-white"
-                          >
-                            <div className="aspect-video bg-slate-50 overflow-hidden relative">
-                              {record.thumb_url ? (
-                                <img src={record.thumb_url} alt="Thumbnail" referrerPolicy="no-referrer" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                              ) : null}
-                              <div className="absolute inset-0 flex items-center justify-center -z-10 bg-slate-50"><ImageIcon className="text-slate-200 w-10 h-10 md:w-12 md:h-12" /></div>
-                            </div>
-                            <div className="p-4 border-t border-slate-50">
-                              <p className="text-blue-600 font-bold text-sm truncate mb-1">{record.photo_code}</p>
-                              <p className="text-slate-500 text-[11px] font-bold uppercase">
-                              {new Date(record.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                );
-              })}
-            </div>
-          )
+        {/* ACTIVE ADD BUTTON */}
+        {activeTab === "batch" ? (
+          <button
+            onClick={() => {
+              setEditId(null);
+              setAlbumName("");
+              setShareLink("");
+              setThumbUrl("");
+              setBatchAlbumCode("");
+
+              setIsEditMode(true);
+              setShowModal(true);
+            }}
+            className="group relative overflow-hidden flex-1 md:flex-none flex items-center justify-center gap-2 px-5 md:px-6 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-[12px] md:text-sm shadow-lg shadow-blue-100 hover:bg-blue-700 hover:shadow-blue-200 hover:-translate-y-[1px] active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+            <Layers className="relative w-4 h-4 flex-shrink-0" />
+
+            <span className="relative whitespace-nowrap">
+              Add Documentation Album
+            </span>
+          </button>
         ) : (
-          /* BATCH ALBUMS VIEW */
-          batchRecords.length === 0 ? (
-            <div className="bg-white rounded-lg border-2 border-dashed border-blue-100 p-12 md:p-24 text-center">
-              <p className="text-slate-400 text-md md:text-lg font-bold">No Documentation Albums created yet.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
-              {batchRecords.map((batch) => (
-                <div key={batch.id} 
-                  onClick={() => { 
-                    setEditId(batch.id); 
-                    setAlbumName(batch.title); 
-                    setShareLink(batch.share_link); 
-                    setThumbUrl(batch.thumb_url); 
-                    setBatchAlbumCode(batch.album_code || ""); 
-                    setIsEditMode(false); 
-                    setShowModal(true); 
-                  }}
-                  className="group relative rounded-xl border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-600 hover:shadow-xl transition-all bg-white"
-                >
-                  <div className="aspect-video bg-slate-50 overflow-hidden relative">
-                    <img src={batch.thumb_url} alt={batch.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                    <div className="absolute top-3 right-3 bg-blue-600 text-white p-1.5 rounded-lg shadow-lg">
-                      <Layers size={14} />
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <h4 className="font-bold text-slate-900 text-sm md:text-md mb-1 uppercase tracking-tight truncate">{batch.title}</h4>
-                    <p className="text-blue-600 text-[11px] font-bold mb-4">{batch.album_code}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Album</span>
-                      <span className="text-slate-300 text-[10px]">{new Date(batch.created_at).toLocaleDateString()}</span>
-                    </div>
+          <button
+            onClick={() => {
+              setEditId(null);
+              setAlbumName("");
+              setShareLink("");
+              setThumbUrl("");
+              setBatchAlbumCode("");
+
+              setIsEditMode(true);
+              setShowModal(true);
+            }}
+            className="group relative overflow-hidden flex-1 md:flex-none flex items-center justify-center gap-2 px-5 md:px-6 py-3.5 rounded-2xl bg-blue-600 text-white font-bold text-[12px] md:text-sm shadow-lg shadow-blue-100 hover:bg-blue-700 hover:shadow-blue-200 hover:-translate-y-[1px] active:scale-95 transition-all whitespace-nowrap cursor-pointer"
+          >
+            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+            <ImageIcon className="relative w-4 h-4 flex-shrink-0" />
+
+            <span className="relative whitespace-nowrap">
+              Add Souvenir Photo
+            </span>
+          </button>
+        )}
+
+        {/* DESKTOP SIGN OUT */}
+        <button
+          onClick={() => setShowSignOutConfirm(true)}
+          className="hidden md:flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl border border-red-200 bg-white text-red-500 font-bold text-sm hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all active:scale-95 whitespace-nowrap cursor-pointer"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main className="p-4 md:p-6 max-w-6xl mx-auto">
+
+  {/* NAVIGATION TABS ONLY */}
+  <div className="flex border-b border-slate-200 mb-8 gap-8">
+    <button 
+      onClick={() => setActiveTab('batch')}
+      className={`pb-4 text-sm font-bold transition-all relative cursor-pointer uppercase tracking-wide ${
+        activeTab === 'batch'
+          ? 'text-blue-600'
+          : 'text-slate-400 hover:text-slate-600'
+      }`}
+    >
+      Documentation Albums
+
+      {activeTab === 'batch' && (
+        <motion.div 
+          layoutId="tab-underline" 
+          className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" 
+        />
+      )}
+    </button>
+
+    <button 
+      onClick={() => setActiveTab('individual')}
+      className={`pb-4 text-sm font-bold transition-all relative cursor-pointer uppercase tracking-wide ${
+        activeTab === 'individual'
+          ? 'text-blue-600'
+          : 'text-slate-400 hover:text-slate-600'
+      }`}
+    >
+      Souvenir Photos
+
+      {activeTab === 'individual' && (
+        <motion.div 
+          layoutId="tab-underline" 
+          className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" 
+        />
+      )}
+    </button>
+  </div>
+
+  {activeTab === 'batch' ? (
+    /* BATCH ALBUMS VIEW */
+    batchRecords.length === 0 ? (
+      <div className="bg-white rounded-lg border-2 border-dashed border-blue-100 p-12 md:p-24 text-center">
+        <Layers className="w-12 h-12 text-blue-200 mx-auto mb-4" />
+        <p className="text-slate-400 text-md md:text-lg font-bold">
+          No Documentation Albums created yet.
+        </p>
+
+        <button
+          onClick={() => {
+            setEditId(null);
+            setAlbumName("");
+            setShareLink("");
+            setThumbUrl("");
+            setBatchAlbumCode("");
+            setIsEditMode(true);
+            setShowModal(true);
+          }}
+          className="mt-6 inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all"
+        >
+          <Plus size={16} />
+          Create First Album
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+        {batchRecords
+          .sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          )
+          .map((batch) => (
+            <div
+              key={batch.id}
+              onClick={() => {
+                setActiveTab('batch');
+                setEditId(batch.id);
+                setAlbumName(batch.title);
+                setShareLink(batch.share_link);
+                setThumbUrl(batch.thumb_url);
+                setBatchAlbumCode(batch.album_code || "");
+                setIsEditMode(false);
+                setShowModal(true);
+              }}
+              className="group relative rounded-xl border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-600 hover:shadow-2xl transition-all bg-white"
+            >
+              <div className="aspect-video bg-slate-50 overflow-hidden relative">
+                <img
+                  src={batch.thumb_url}
+                  alt={batch.title}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+
+                <div className="absolute top-3 right-3 bg-blue-600 text-white p-2 rounded-xl shadow-lg">
+                  <Layers size={16} />
+                </div>
+
+                <div className="absolute bottom-3 left-3 right-3">
+                  <div className="inline-flex items-center gap-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                    <Folder size={13} className="text-blue-600" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">
+                      Documentation Album
+                    </span>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              <div className="p-5">
+                <h4 className="font-bold text-slate-900 text-sm md:text-md mb-1 uppercase tracking-tight truncate">
+                  {batch.title}
+                </h4>
+
+                <p className="text-blue-600 text-[11px] font-bold mb-4 tracking-widest uppercase">
+                  {batch.album_code}
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                    Album
+                  </span>
+
+                  <span className="text-slate-300 text-[10px]">
+                    {new Date(batch.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
             </div>
-          )
-        )}
+          ))}
+      </div>
+    )
+  ) : (
+    /* INDIVIDUAL ALBUM PHOTOS VIEW */
+    records.length === 0 ? (
+      <div className="bg-white rounded-lg border-2 border-dashed border-blue-100 p-12 md:p-24 text-center">
+        <ImageIcon className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+        <p className="text-slate-400 text-md md:text-lg font-bold">
+          Your individual gallery is empty.
+        </p>
+      </div>
+    ) : (
+      <div className="space-y-6 md:space-y-8">
+        {Object.keys(groupedRecords).map((albumKey) => {
+          const isCollapsed = collapsedAlbums.includes(albumKey);
+
+          const sortedAlbumRecords = [...groupedRecords[albumKey]].sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          );
+
+          return (
+            <section key={albumKey} className="space-y-4">
+              <div
+                onClick={() => toggleAlbum(albumKey)}
+                className="flex items-center justify-between p-3 md:p-4 rounded-lg cursor-pointer hover:bg-slate-50 transition-all group"
+              >
+                <div className="flex items-center gap-2 md:gap-3 cursor-pointer">
+                  <Folder
+                    className={`${
+                      isCollapsed
+                        ? 'text-slate-400'
+                        : 'text-blue-600'
+                    } w-5 h-5 md:w-6 md:h-6 transition-colors`}
+                  />
+
+                  <h3 className="text-sm md:text-md font-bold text-slate-900 uppercase tracking-wide truncate max-w-[150px] md:max-w-none">
+                    {albumKey}
+                  </h3>
+
+                  <span className="bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-[10px] md:text-xs font-bold">
+                    {sortedAlbumRecords.length}
+                  </span>
+                </div>
+
+                <ChevronRight
+                  className={`text-slate-400 transition-transform duration-300 cursor-pointer ${
+                    isCollapsed ? '' : 'rotate-90'
+                  }`}
+                />
+              </div>
+
+              {!isCollapsed && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                  {sortedAlbumRecords.map((record) => (
+                    <div
+                      key={record.id}
+                      onClick={() => {
+                        setActiveTab('individual');
+                        setEditId(record.id);
+                        setAlbumName(record.album_name);
+                        setShareLink(record.share_link);
+                        setThumbUrl(record.thumb_url);
+                        setIsEditMode(false);
+                        setShowModal(true);
+                      }}
+                      className="group relative rounded-lg border border-slate-200 overflow-hidden cursor-pointer hover:border-blue-500 hover:shadow-xl transition-all active:scale-[0.98] bg-white"
+                    >
+                      <div className="aspect-video bg-slate-50 overflow-hidden relative">
+                        {record.thumb_url ? (
+                          <img
+                            src={record.thumb_url}
+                            alt="Thumbnail"
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                        ) : null}
+
+                        <div className="absolute inset-0 flex items-center justify-center -z-10 bg-slate-50">
+                          <ImageIcon className="text-slate-200 w-10 h-10 md:w-12 md:h-12" />
+                        </div>
+                      </div>
+
+                      <div className="p-4 border-t border-slate-50">
+                        <p className="text-blue-600 font-bold text-sm truncate mb-1">
+                          {record.photo_code}
+                        </p>
+
+                        <p className="text-slate-500 text-[11px] font-bold uppercase">
+                          {new Date(record.created_at).toLocaleDateString(
+                            'en-US',
+                            {
+                              month: 'long',
+                              day: 'numeric',
+                              year: 'numeric',
+                            }
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    )
+  )}
 
 {/* --- DUAL-MODE MODAL (Preview & Edit) --- */}
 {showModal && (
